@@ -1,0 +1,2 @@
+fsspec~=2023.9.1
+geopandas~=0.12.2

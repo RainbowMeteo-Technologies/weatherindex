@@ -1,0 +1,33 @@
+FROM python:3.11.9-slim AS metrics
+
+ENV LANG=en_US.UTF-8
+ENV TZ=Europe/Warsaw
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV APP_DIR='/metrics'
+
+WORKDIR $APP_DIR
+
+COPY ./requirements.txt requirements.txt
+
+RUN apt-get update && \
+    apt-get install -y ca-certificates gcc g++ git libglib2.0-0 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install -r requirements.txt --no-cache-dir && \
+    apt-get remove -y gcc git g++ && \
+    apt autoremove -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm requirements.txt
+
+COPY ./metrics ${APP_DIR}/metrics
+
+EXPOSE 8080
+
+# CI image
+FROM metrics AS metrics-ci
+
+COPY ./tests ${APP_DIR}/tests
+COPY ./scripts ${APP_DIR}/scripts
+RUN pip3 install -r ${APP_DIR}/tests/requirements.txt --no-cache-dir
+

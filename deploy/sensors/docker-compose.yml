@@ -1,0 +1,18 @@
+version: "3.7"
+
+services:
+
+  accuweather-downloader:
+    profiles:
+      - metar
+    image: weatherindex/weatherindex:sensors-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/download/metar/:/.download/metar/
+    command: |
+      python -m sensors
+      --download-path ./download/metar
+      --storage-uri ${S3_URI_METAR}
+      metar

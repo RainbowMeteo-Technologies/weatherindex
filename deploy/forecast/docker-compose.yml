@@ -1,0 +1,126 @@
+version: "3.7"
+
+services:
+
+  accuweather-downloader:
+    profiles:
+      - accuweather
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/accuweather/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_ACCU}
+      --process-num 32
+      --download-period 600
+      accuweather
+      --sensors /sensors.csv
+      --token ${ACCUWEATHER_TOKEN}
+
+  vaisala-downloader:
+    profiles:
+      - vaisala
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/vaisala/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_VAISALA}
+      --process-num 64
+      --download-period 600
+      vaisala
+      --sensors /sensors.csv
+      --client-id ${VAISALA_CLIENT_ID}
+      --client-secret ${VAISALA_CLIENT_SECRET}
+
+  rainviewer-downloader:
+    profiles:
+      - rainviewer
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/rainviewer/:/storage/
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_RAINVIEWER}
+      --process-num 8
+      --download-period 600
+      rainviewer
+      --token ${RAINVIEWER_TOKEN}
+      --zoom 7
+
+  rainbow-downloader:
+    profiles:
+      - rainbow
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/rainbow/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_RAINBOW}
+      --process-num 64
+      --download-period 600
+      rainbow
+      --sensors /sensors.csv
+      --token ${RAINBOW_TOKEN}
+
+  weathercompany-downloader:
+    profiles:
+      - weathercompany
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/weathercompany/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_WEATHERCOMPANY}
+      --process-num 64
+      --download-period 600
+      weathercompany
+      --sensors /sensors.csv
+      --token ${WEATHERCOMPANY_TOKEN}
+
+  tomorrow-6hours-downloader:
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    profiles:
+      - tomorrow
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/tomorrow/6hours/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    ports:
+      - "9004:9000"
+    command: |
+      python -m forecast
+      --sensors /sensors.csv
+      --download-path /storage
+      --s3-uri ${S3_URI_TOMORROW}
+      --process-num 64
+      --download-period 600
+      tomorrowio
+      --forecast-type 6hours
+      --token ${TOMORROW_TOKEN}
