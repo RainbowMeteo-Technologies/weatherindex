@@ -1,0 +1,8 @@
+[run]
+source =
+    ./metrics/
+omit =
+    */tests/*
+    */tests
+    */__init__.py
+    */__main__.py
