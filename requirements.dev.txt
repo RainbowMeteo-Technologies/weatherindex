@@ -4,4 +4,6 @@
 -r tests/requirements.txt
 
 # tools
+-r tools/forecast/requirements.txt
 -r tools/sensor_select/requirements.txt
+-r tools/sensors/requirements.txt
