@@ -98,7 +98,7 @@ def parse(session_path: str,
 
     convert_sources: List[ParseSource] = []
     for provider in providers:
-        parser_cls = providers_parser.get(provider)
+        parser_cls = providers_parser.get(provider.value)
         if parser_cls is not None:
             input_path = os.path.join(session.data_folder, provider.value)
             output_path = os.path.join(session.tables_folder, provider.value)
