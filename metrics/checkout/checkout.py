@@ -4,7 +4,7 @@ import os
 import typing
 
 from metrics.checkout.constants import AGGREGATION_PERIOD
-from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo, DataSource, FILENAME_RULES
+from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo, DataSource
 from metrics.data_vendor import DataVendor
 from metrics.session import Session
 from metrics.utils.s3 import S3Client
@@ -68,8 +68,7 @@ def _build_s3_download_list(snaphots: typing.List[int], s3_uri: str, rule: str) 
     typing.List[str]
         Returns list of s3 uri's
     """
-    filename_func = FILENAME_RULES[rule]
-    return list(map(lambda item: os.path.join(s3_uri, filename_func(item)), snaphots))
+    return list(map(lambda item: os.path.join(s3_uri, rule(item)), snaphots))
 
 
 def _download_file_impl(args):
@@ -187,34 +186,34 @@ class CheckoutExecutor:
 
     def forecast_sources_list(self, forecasts_info: ForecastSourcesInfo) -> typing.List["DataSource"]:
         return [
-            DataSource(vendor="weather kit", s3_uri=forecasts_info.s3_uri_wk,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherKit.value),
-                       period=constants.WEATHERKIT_PERIOD),
-            DataSource(vendor="accuweather", s3_uri=forecasts_info.s3_uri_accuweather,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.AccuWeather.value),
-                       period=constants.ACCUWEATHER_PERIOD),
-            DataSource(vendor="rainviewer", s3_uri=forecasts_info.s3_uri_rainviewer,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.RainViewer.value),
-                       period=constants.RAINVIEWER_PERIOD),
-            DataSource(vendor="tomorrow-io", s3_uri=forecasts_info.s3_uri_tomorrowio,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.TomorrowIo.value),
-                       period=constants.TOMORROWIO_PERIOD),
-            DataSource(vendor="vaisala", s3_uri=forecasts_info.s3_uri_vaisala,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.Vaisala.value),
-                       period=constants.VAISALA_PERIOD),
-            DataSource(vendor="rainbowai", s3_uri=forecasts_info.s3_uri_rainbowai,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.RainbowAi.value),
-                       period=constants.RAINBOWAI_PERIOD),
-            DataSource(vendor="weathercompany", s3_uri=forecasts_info.s3_uri_weathercompany,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherCompany.value),
-                       period=constants.WEATHERCOMPANY_PERIOD),
+            DataSource.create(vendor="weather kit", s3_uri=forecasts_info.s3_uri_wk,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherKit.value),
+                              period=constants.WEATHERKIT_PERIOD),
+            DataSource.create(vendor="accuweather", s3_uri=forecasts_info.s3_uri_accuweather,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.AccuWeather.value),
+                              period=constants.ACCUWEATHER_PERIOD),
+            DataSource.create(vendor="rainviewer", s3_uri=forecasts_info.s3_uri_rainviewer,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.RainViewer.value),
+                              period=constants.RAINVIEWER_PERIOD),
+            DataSource.create(vendor="tomorrow-io", s3_uri=forecasts_info.s3_uri_tomorrowio,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.TomorrowIo.value),
+                              period=constants.TOMORROWIO_PERIOD),
+            DataSource.create(vendor="vaisala", s3_uri=forecasts_info.s3_uri_vaisala,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Vaisala.value),
+                              period=constants.VAISALA_PERIOD),
+            DataSource.create(vendor="rainbowai", s3_uri=forecasts_info.s3_uri_rainbowai,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.RainbowAi.value),
+                              period=constants.RAINBOWAI_PERIOD),
+            DataSource.create(vendor="weathercompany", s3_uri=forecasts_info.s3_uri_weathercompany,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherCompany.value),
+                              period=constants.WEATHERCOMPANY_PERIOD),
         ]
 
     def observation_sources_list(self, observations_info: ObservationSourcesInfo) -> typing.List["DataSource"]:
         return [
-            DataSource(vendor="metar", s3_uri=observations_info.s3_uri_metar,
-                       data_folder=os.path.join(self._session.data_folder, DataVendor.Metar.value),
-                       period=constants.METAR_PERIOD)
+            DataSource.create(vendor="metar", s3_uri=observations_info.s3_uri_metar,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Metar.value),
+                              period=constants.METAR_PERIOD)
         ]
 
     def run(self):
