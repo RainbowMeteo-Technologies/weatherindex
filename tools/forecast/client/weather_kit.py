@@ -16,6 +16,9 @@ from rich.console import Console
 console = Console()
 
 
+WK_FORECAST_TYPES = ["hour", "day"]
+
+
 @dataclass(frozen=True)
 class TokenParams:
     team_id: str

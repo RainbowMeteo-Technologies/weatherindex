@@ -18,7 +18,7 @@ class OpenWeather(RequestInterface):
         self.token = token
         self.sensors = sensors
 
-    async def _get_json_forecast_in_point(self, lon: float, lat: float):
+    def _get_json_forecast_in_point(self, lon: float, lat: float):
         # https://openweathermap.org/api/one-call-3#how
         url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={self.token}"
 

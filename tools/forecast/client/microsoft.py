@@ -19,7 +19,7 @@ class Microsoft(RequestInterface):
         self.subscription_key = subscription_key
         self.sensors = sensors
 
-    async def _get_json_forecast_in_point(self, lon: float, lat: float):
+    def _get_json_forecast_in_point(self, lon: float, lat: float):
         # https://learn.microsoft.com/en-us/rest/api/maps/weather/get-minute-forecast?view=rest-maps-2023-06-01&tabs=HTTP
         url = f"https://atlas.microsoft.com/weather/forecast/minute/json?api-version=1.1&query={lat},{lon}&interval=1&subscription-key={self.subscription_key}"
         headers = {

@@ -52,7 +52,7 @@ class TomorrowIo(RequestInterface):
 
         return self._native_post(url, headers=headers, body=payload)
 
-    async def _get_json_forecast_in_point(self, lon: float, lat: float):
+    def _get_json_forecast_in_point(self, lon: float, lat: float):
         data = None
         if self.forecast_type == "hour":
             data = self._request_1hour_forecast(lon=lon, lat=lat)

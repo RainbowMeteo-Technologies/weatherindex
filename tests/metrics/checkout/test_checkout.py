@@ -2,6 +2,7 @@ import pytest
 import typing
 
 from metrics.checkout.checkout import _build_snapshot_list, _build_s3_download_list
+from metrics.checkout.data_source import _timestamp_zip
 
 
 class TestCheckout:
@@ -32,13 +33,13 @@ class TestCheckout:
                 period=period)
 
     @pytest.mark.parametrize("snaphots, s3_uri, rule, expected_uris", [
-        ([234, 567, 987], "s3://rainbow-test/", "timestamp",
+        ([234, 567, 987], "s3://rainbow-test/", _timestamp_zip,
          ["s3://rainbow-test/234.zip",
           "s3://rainbow-test/567.zip",
           "s3://rainbow-test/987.zip"
           ]),
-        ([0], "s3://rainbow-test/zero/", "timestamp", ["s3://rainbow-test/zero/0.zip"]),
-        ([], "s3://rainbow-test/", "timestamp", []),
+        ([0], "s3://rainbow-test/zero/", _timestamp_zip, ["s3://rainbow-test/zero/0.zip"]),
+        ([], "s3://rainbow-test/", _timestamp_zip, []),
     ])
     def test_build_s3_download_list(
             self,
