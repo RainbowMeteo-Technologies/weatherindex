@@ -104,7 +104,7 @@ class ForecastManager:
                     assert "precip_type" in data.columns
                     assert "timestamp" in data.columns
 
-                    data = data[data["id"].isin(sensor_ids)]
+                    data = data[data["id"].isin(sensor_ids)].copy()
                     data["forecast_time"] = data["timestamp"] - curr_time
 
                     loaded_forecasts.append(data)
