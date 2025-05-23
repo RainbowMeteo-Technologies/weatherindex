@@ -4,5 +4,4 @@
 -r tests/requirements.txt
 
 # tools
--r tools/downloader/requirements.txt
 -r tools/sensor_select/requirements.txt

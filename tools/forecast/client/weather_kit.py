@@ -1,17 +1,16 @@
 import asyncio
 import json
-import os
 import jwt
+import os
 
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
-from typing import BinaryIO, List
-
-from forecast.req_interface import RequestInterface
+from forecast.client.base import SensorClientBase
 from forecast.sensor import Sensor
-
 from rich.console import Console
+from typing import BinaryIO
+from typing_extensions import override  # for python <3.12
+
 
 console = Console()
 
@@ -72,13 +71,14 @@ class Token:
         return Token(token, expiry_time)
 
 
-class WeatherKit(RequestInterface):
-    def __init__(self, token: str, datasets: str, sensors: List[Sensor]):
+class WeatherKit(SensorClientBase):
+    def __init__(self, token: str, datasets: str, sensors: list[Sensor]):
+        super().__init__(sensors)
         self.token = token
         self.datasets = datasets
-        self.sensors = sensors
 
-    def _get_json_forecast_in_point(self, lon: float, lat: float) -> bytes:
+    @override
+    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
         # https://developer.apple.com/documentation/weatherkitrestapi/get_api_v1_weather_language_latitude_longitude
         url = f"https://weatherkit.apple.com/api/v1/weather/en/{lat}/{lon}/"
         headers = {
@@ -90,23 +90,4 @@ class WeatherKit(RequestInterface):
             "dataSets": self.datasets,
         }
 
-        return self._native_get(url=url, params=params, headers=headers)
-
-    async def get_forecast(self, download_path: str, process_num: int = None):
-        with ThreadPoolExecutor(max_workers=process_num) as executor:
-            loop = asyncio.get_event_loop()
-
-            tasks = []
-            for sensor in self.sensors:
-                task = loop.run_in_executor(executor, self._get_json_forecast_in_point, sensor.lon, sensor.lat)
-                tasks.append(task)
-
-            console.log(f"Downloading {len(tasks)} forecasts...")
-            forecasts = await asyncio.gather(*tasks)
-
-            for forecast, sensor in zip(forecasts, self.sensors):
-                if forecast is not None:
-                    with open(os.path.join(download_path, f"{sensor.id}.json"), "wb") as file:
-                        file.write(forecast)
-                else:
-                    console.log(f"Wasn't able to get data for {sensor.id}")
+        return await self._native_get(url=url, params=params, headers=headers)

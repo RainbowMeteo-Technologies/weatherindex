@@ -6,20 +6,17 @@ import shutil
 import typing
 
 from datetime import datetime
-
 from forecast.client.accuweather import AccuWeather
 from forecast.client.microsoft import Microsoft
 from forecast.client.myradar import MyRadar
 from forecast.client.openweather import OpenWeather
 from forecast.client.rainbow import Rainbow
 from forecast.client.rainviewer import RainViewer
-from forecast.client.tomorrowio import TomorrowIo, TOMORROW_FORECAST_TYPES
+from forecast.client.tomorrowio import TOMORROW_FORECAST_TYPES, TomorrowIo
 from forecast.client.vaisala import Vaisala
 from forecast.client.weather_company import WeatherCompany
-from forecast.client.weather_kit import WeatherKit, Token, TokenParams
-
+from forecast.client.weather_kit import Token, TokenParams, WeatherKit
 from forecast.sensor import Sensor
-
 from rich.console import Console
 from urllib.parse import urlparse
 
@@ -268,7 +265,7 @@ if __name__ == "__main__":
     myradar_parser = subparser.add_parser("myradar", help="myRadar")
     _add_sensors_params(myradar_parser)
     myradar_parser.add_argument("--key", type=str, required=True,
-                                help="Subscirption key")
+                                help="Subscription key")
 
     myradar_parser.set_defaults(func=_create_myradar)
 
@@ -304,8 +301,7 @@ if __name__ == "__main__":
     vaisala_parser.set_defaults(func=_create_viasala)
 
     # Open Weather
-    openweather_parser = subparser.add_parser(
-        "openweather", help="Open Weather")
+    openweather_parser = subparser.add_parser("openweather", help="Open Weather")
     _add_sensors_params(openweather_parser)
     openweather_parser.add_argument("--token", type=str, required=True,
                                     help="Token to access Open Weather API")

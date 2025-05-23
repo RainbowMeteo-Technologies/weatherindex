@@ -1,71 +1,66 @@
+import aiohttp
 import json
-import requests
-import typing
 
 from rich.console import Console
+from typing import Awaitable, Callable
+from typing_extensions import override  # for python <3.12
+
 
 console = Console()
 
 
-class RequestInterface:
+class RequestInterface():
 
-    def do(self, lon: float, lat: float) -> typing.Tuple[bytes, str]:
-        try:
-            return self._do_impl(lon=lon, lat=lat)
-        except BaseException:
-            console.print_exception()
-            return None
-
-    def _do_impl(self, lon: float, lat: float) -> bytes:
-        raise NotImplemented()
-
-    def _run_with_retries(self, do_request, n: int = 5):
-        data = None
+    async def _run_with_retries(self,
+                                do_request: Callable[[], Awaitable[bytes | None]],
+                                n: int = 5) -> bytes | None:
         for _ in range(n):
-            data = do_request()
+            data = await do_request()
             if data is not None:
-                break
+                return data
+        return None
 
-        return data
-
-    def _native_get(self, url: str, headers: dict = {}, params: dict = {}) -> typing.Tuple[bytes, str]:
+    async def _native_get(self, url: str,
+                          headers: dict[str, str] | None = None,
+                          params: dict[str, str] | None = None,
+                          timeout: int = 30) -> bytes | None:
         """Does http GET-request to specified url
         """
-        def _try_download():
-            try:
-                response = requests.get(url, headers=headers, params=params, timeout=30)
-                if response.status_code == 200:
-                    return response.content
-                else:
-                    console.log(f"{response.status_code} - {url}")
-                    try:
-                        msg = json.loads(response.content)
-                        console.log(f"GET-request response message: {msg}")
-                    except BaseException:
-                        console.log(f"GET-request response is not JSON")
+        async with aiohttp.ClientSession() as session:
+
+            async def _try_download() -> bytes | None:
+                try:
+                    timeout = aiohttp.ClientTimeout(total=timeout)
+                    async with session.get(url, headers=headers, params=params, timeout=timeout) as resp:
+                        if resp.ok:
+                            return await resp.read()
+                        else:
+                            console.log(f"{resp.status} - {url}")
+                        return None
+
+                except Exception:
                     return None
-            except requests.exceptions.RequestException:
-                return None
 
-        return self._run_with_retries(_try_download)
+            return await self._run_with_retries(_try_download)
 
-    def _native_post(self, url: str, headers: dict = {}, body={}) -> typing.Tuple[bytes, str]:
+    async def _native_post(self, url: str,
+                           headers: dict[str, str] | None = None,
+                           body: dict[str, object] = {},
+                           timeout: int = 30) -> bytes | None:
         """Does http POST-request to specified url
         """
-        def _try_download():
-            try:
-                response = requests.post(url, json=body, headers=headers, timeout=30)
-                if response.status_code == 200:
-                    return response.content
-                else:
-                    console.log(f"{response.status_code} - {url}")
-                    try:
-                        msg = json.loads(response.content)
-                        console.log(f"POST-request error message: {msg}")
-                    except BaseException:
-                        console.log(f"POST-request response is not JSON")
-                    return None
-            except requests.exceptions.RequestException:
-                return None
+        async with aiohttp.ClientSession() as session:
 
-        return self._run_with_retries(_try_download)
+            async def _try_download() -> bytes | None:
+                try:
+                    timeout = aiohttp.ClientTimeout(total=timeout)
+                    async with session.post(url, headers=headers, json=body, timeout=timeout) as resp:
+                        if resp.ok:
+                            return await resp.read()
+                        else:
+                            console.log(f"{resp.status} - {url}")
+                        return None
+                except Exception:
+                    return None
+
+            return await self._run_with_retries(_try_download)

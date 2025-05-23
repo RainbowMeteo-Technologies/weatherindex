@@ -2,25 +2,25 @@ import asyncio
 import json
 import os
 
-from concurrent.futures import ThreadPoolExecutor
-from typing import List
-
-from forecast.req_interface import RequestInterface
+from forecast.client.base import SensorClientBase
 from forecast.sensor import Sensor
-
 from rich.console import Console
+from typing_extensions import override  # for python <3.12
+
 
 console = Console()
 
 
-class AccuWeather(RequestInterface):
-    def __init__(self, token: str, sensors: List[Sensor]):
-        self.token = token
-        self.sensors = sensors
+class AccuWeather(SensorClientBase):
 
-    def _get_json_forecast_in_point(self, lon: float, lat: float):
+    def __init__(self, token: str, sensors: list[Sensor]):
+        super().__init__(sensors)
+        self.token = token
+
+    @override
+    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
         url = f"http://dataservice.accuweather.com/forecasts/v1/minute?q={lat},{lon}&apikey={self.token}"
-        data = self._native_get(url=url)
+        data = await self._native_get(url=url)
         if data is not None:
             payload = json.loads(data)
 
@@ -33,22 +33,3 @@ class AccuWeather(RequestInterface):
             })
 
         return None
-
-    async def get_forecast(self, download_path: str, process_num: int = None):
-        with ThreadPoolExecutor(max_workers=process_num) as executor:
-            loop = asyncio.get_event_loop()
-
-            tasks = []
-            for sensor in self.sensors:
-                task = loop.run_in_executor(executor, self._get_json_forecast_in_point, sensor.lon, sensor.lat)
-                tasks.append(task)
-
-            console.log(f"Downloading {len(tasks)} forecasts...")
-            forecasts = await asyncio.gather(*tasks)
-
-            for forecast, sensor in zip(forecasts, self.sensors):
-                if forecast is not None:
-                    with open(os.path.join(download_path, f"{sensor.id}.json"), "w") as file:
-                        file.write(forecast)
-                else:
-                    console.log(f"Wasn't able to get data for {sensor.id}")

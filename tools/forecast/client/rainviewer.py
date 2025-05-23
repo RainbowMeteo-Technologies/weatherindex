@@ -5,13 +5,13 @@ import json
 import os
 
 from concurrent.futures import ProcessPoolExecutor
+from forecast.client.base import ClientBase
+from forecast.sensor import Sensor
 from itertools import product
-from typing import List, Tuple
-from tqdm import tqdm
-
-from forecast.req_interface import RequestInterface
-
 from rich.console import Console
+from tqdm import tqdm
+from typing_extensions import override  # for python <3.12
+
 
 console = Console()
 
@@ -46,7 +46,7 @@ async def _try_download_file(session: aiohttp.ClientSession, url: str):
     return None
 
 
-def _download_tiles_batch(jobs: List[Tuple[str, str]]) -> int:
+def _download_tiles_batch(jobs: list[tuple[str, str]]) -> list[bool]:
 
     async def download_one_tile(session: aiohttp.ClientSession, url: str, file_path: str) -> bool:
         data = await _try_download_file(session, url)
@@ -59,7 +59,7 @@ def _download_tiles_batch(jobs: List[Tuple[str, str]]) -> int:
         console.log(f"Wasn't able to download tile `{url}`")
         return False
 
-    async def download_batch() -> int:
+    async def download_batch() -> list[bool]:
         connector = aiohttp.TCPConnector(limit=MAX_CONNECTIONS_PER_SESSION)
         async with aiohttp.ClientSession(connector=connector) as session:
             run_jobs = []
@@ -68,30 +68,24 @@ def _download_tiles_batch(jobs: List[Tuple[str, str]]) -> int:
                 url, file_path = job
                 run_jobs.append(download_one_tile(session, url, file_path))
 
-            results = await asyncio.gather(*run_jobs)
-
-            errors_num = 0
-            for res in results:
-                if not res:
-                    errors_num += 1
-
-            return errors_num
+            return await asyncio.gather(*run_jobs)
 
     return asyncio.run(download_batch())
 
 
-class RainViewer(RequestInterface):
+class RainViewer(ClientBase):
     TILE_SIZE = 256
     METADATA_RETRY_DELAY = 15
 
     def __init__(self, token: str, zoom: int):
+        super().__init__()
         self.token = token
         self.zoom = zoom
 
-    def _get_metadata(self):
+    async def _get_metadata(self) -> dict[object, object] | None:
         url = f"https://api.rainviewer.com/private/{self.token}/weather-maps.json"
 
-        data = self._native_get(url=url)
+        data = await self._native_get(url=url)
         if data is not None:
             payload = json.loads(data)
 
@@ -99,7 +93,11 @@ class RainViewer(RequestInterface):
 
         return None
 
-    async def get_forecast(self, download_path: str, process_num: int = None):
+    # @override
+    async def get_forecast(self,
+                           download_path: str,
+                           process_num: int | None = None,
+                           chunk_size: int | None = None):
         snapshot_timestamp = int(os.path.basename(download_path))
 
         snapshot_available = False
@@ -107,7 +105,7 @@ class RainViewer(RequestInterface):
         current_observation = None
 
         while not snapshot_available:
-            metadata = self._get_metadata()
+            metadata = await self._get_metadata()
 
             if metadata is None:
                 return
@@ -128,6 +126,7 @@ class RainViewer(RequestInterface):
 
         # 7 frames are available for each tile: current observation and 6 nowcasts
         assert len(available_frames) == 7
+        assert metadata is not None
 
         jobs = []
         for tile_x, tile_y in product(range(0, 2 ** self.zoom), range(0, 2 ** self.zoom)):
@@ -147,16 +146,13 @@ class RainViewer(RequestInterface):
                 jobs.append((map_tile_url, map_tile_path))
 
         console.log(f"Downloading {len(jobs)} tiles")
-        batches = [jobs[i:i + BATCH_SIZE] for i in range(0, len(jobs), BATCH_SIZE)]
 
-        loop = asyncio.get_event_loop()
+        results = await self.execute_with_batches(args=jobs,
+                                                  chunk_func=_download_tiles_batch,
+                                                  chunk_size=BATCH_SIZE,
+                                                  process_num=process_num)
 
-        with ProcessPoolExecutor(max_workers=process_num) as executor:
-            tasks = [loop.run_in_executor(executor, _download_tiles_batch, batch) for batch in batches]
-            errors_num = 0
-            for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Downloading tiles"):
-                result = await task
-                errors_num += result
-
-            console.log(f"Downloaded {len(jobs) - errors_num} tiles")
-            console.log(f"Errors: {errors_num}")
+        # failed result could be either False or exception
+        valid_results = sum([1 for result in results if result is True])
+        console.log(f"Downloaded {valid_results} tiles")
+        console.log(f"Errors: {len(jobs) - valid_results}")

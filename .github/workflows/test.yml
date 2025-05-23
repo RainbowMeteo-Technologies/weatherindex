@@ -39,8 +39,8 @@ jobs:
         run: |
           ./scripts/lint/check_code.sh
 
-  tests:
-    name: Testing
+  tests-metrics:
+    name: Testing metrics
     runs-on: ubuntu-latest
     needs: linters
     steps:
@@ -56,3 +56,21 @@ jobs:
       - name: Run tests
         run: |
           docker run -t metrics-ci scripts/test/run_tests.sh
+
+  tests-forecast:
+    name: Testing forecast
+    runs-on: ubuntu-latest
+    needs: linters
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build docker image
+        run: |
+          docker build \
+            -f Dockerfile.forecast \
+            --target metrics-forecast-ci \
+            --platform linux/amd64 \
+            -t metrics-forecast-ci .
+      - name: Run tests
+        run: |
+          docker run -t metrics-forecast-ci scripts/test/run_tests.sh
