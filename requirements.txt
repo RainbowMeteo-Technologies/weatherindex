@@ -12,4 +12,3 @@ rio-tiler~=6.7.0
 redis~=5.0.0
 rich~=13.3.3
 tqdm~=4.67.1
-wradlib~=2.0.3

@@ -93,7 +93,7 @@ class RainViewer(ClientBase):
 
         return None
 
-    # @override
+    @override
     async def get_forecast(self,
                            download_path: str,
                            process_num: int | None = None,
