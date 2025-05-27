@@ -29,13 +29,11 @@ class ForecastManager:
         self._providers: typing.Dict[int, ForecastProvider] = {}  # providers by timestamps
 
     def _create_data_provider(self, timestamp: int) -> ForecastProvider:
-        if self._data_vendor == DataVendor.RainViewer:
+        if self._data_vendor.value == DataVendor.RainViewer.value:
             return RainViewerProvider(
-                snapshots_path=os.path.join(
-                    self._session.data_folder,
-                    DataVendor.RainViewer.value),
+                snapshots_path=os.path.join(self._session.data_folder, DataVendor.RainViewer.value),
                 snapshot_timestamp=timestamp)
-        elif self._data_vendor in DataVendor:
+        elif self._data_vendor.value in [v.value for v in DataVendor]:
             snapshots_path = os.path.join(self._session.tables_folder, self._data_vendor.value)
             return TableProvider(tables_path=snapshots_path,
                                  snapshot_timestamp=timestamp)
@@ -106,7 +104,7 @@ class ForecastManager:
                     assert "precip_type" in data.columns
                     assert "timestamp" in data.columns
 
-                    data = data[data["id"].isin(sensor_ids)]
+                    data = data[data["id"].isin(sensor_ids)].copy()
                     data["forecast_time"] = data["timestamp"] - curr_time
 
                     loaded_forecasts.append(data)

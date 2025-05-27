@@ -1,10 +1,11 @@
 import concurrent.futures
+import metrics.checkout.constants as constants
 import os
-import shutil
 import typing
 
 from metrics.checkout.constants import AGGREGATION_PERIOD
-from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo, DataSource, FILENAME_RULES
+from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo, DataSource
+from metrics.data_vendor import DataVendor
 from metrics.session import Session
 from metrics.utils.s3 import S3Client
 from metrics.utils.time import format_time
@@ -67,8 +68,7 @@ def _build_s3_download_list(snaphots: typing.List[int], s3_uri: str, rule: str) 
     typing.List[str]
         Returns list of s3 uri's
     """
-    filename_func = FILENAME_RULES[rule]
-    return list(map(lambda item: os.path.join(s3_uri, filename_func(item)), snaphots))
+    return list(map(lambda item: os.path.join(s3_uri, rule(item)), snaphots))
 
 
 def _download_file_impl(args):
@@ -124,7 +124,7 @@ def _download_data(s3_uri: str,
     console.log(f"Download from {s3_uri} completed in {tm():.2f} seconds...")
 
 
-def checkout_forecasts(session: Session, forecasts_source: ForecastSourcesInfo):
+def checkout_forecasts(session: Session, forecasts_sources: typing.List[DataSource]):
     def _download_forecast(vendor: str, s3_uri: str, data_folder: str, rule: str, period: int = 600):
         time = format_time(session.start_time - session.forecast_range)
         console.log(f"[yellow]Download `{vendor}` forecast[/yellow]: [{time}, {format_time(session.end_time)}]")
@@ -138,8 +138,7 @@ def checkout_forecasts(session: Session, forecasts_source: ForecastSourcesInfo):
                        rule=rule)
 
     os.makedirs(session.data_folder, exist_ok=True)
-    for source in DataSource.forecast_sources_list(session=session,
-                                                   forecast_source_info=forecasts_source):
+    for source in forecasts_sources:
         if source.s3_uri is not None:
             _download_forecast(vendor=source.vendor,
                                s3_uri=source.s3_uri,
@@ -148,7 +147,7 @@ def checkout_forecasts(session: Session, forecasts_source: ForecastSourcesInfo):
                                rule=source.filename_rule)
 
 
-def checkout_sensors(session: Session, observations_source: ObservationSourcesInfo):
+def checkout_sensors(session: Session, observations_sources: typing.List[DataSource]):
     def _download_sensors(vendor: str,
                           s3_uri: str,
                           data_folder: str,
@@ -166,14 +165,70 @@ def checkout_sensors(session: Session, observations_source: ObservationSourcesIn
                        rule=rule)
 
     os.makedirs(session.data_folder, exist_ok=True)
-    for source in DataSource.observation_sources_list(session=session,
-                                                      observation_source_info=observations_source):
+    for source in observations_sources:
         if source.s3_uri is not None:
             _download_sensors(vendor=source.vendor,
                               s3_uri=source.s3_uri,
                               data_folder=source.data_folder,
                               period=source.period,
                               rule=source.filename_rule)
+
+
+class CheckoutExecutor:
+    def __init__(self,
+                 session: Session,
+                 observations_info: ObservationSourcesInfo,
+                 forecasts_info: ForecastSourcesInfo):
+        self._session = session
+
+        self.observations_sources = self.observation_sources_list(observations_info)
+        self.forecasts_sources = self.forecast_sources_list(forecasts_info)
+
+    def forecast_sources_list(self, forecasts_info: ForecastSourcesInfo) -> typing.List["DataSource"]:
+        return [
+            DataSource.create(vendor="weather kit", s3_uri=forecasts_info.s3_uri_wk,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherKit.value),
+                              period=constants.WEATHERKIT_PERIOD),
+            DataSource.create(vendor="accuweather", s3_uri=forecasts_info.s3_uri_accuweather,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.AccuWeather.value),
+                              period=constants.ACCUWEATHER_PERIOD),
+            DataSource.create(vendor="rainviewer", s3_uri=forecasts_info.s3_uri_rainviewer,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.RainViewer.value),
+                              period=constants.RAINVIEWER_PERIOD),
+            DataSource.create(vendor="tomorrow-io", s3_uri=forecasts_info.s3_uri_tomorrowio,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.TomorrowIo.value),
+                              period=constants.TOMORROWIO_PERIOD),
+            DataSource.create(vendor="vaisala", s3_uri=forecasts_info.s3_uri_vaisala,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Vaisala.value),
+                              period=constants.VAISALA_PERIOD),
+            DataSource.create(vendor="rainbowai", s3_uri=forecasts_info.s3_uri_rainbowai,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.RainbowAi.value),
+                              period=constants.RAINBOWAI_PERIOD),
+            DataSource.create(vendor="weathercompany", s3_uri=forecasts_info.s3_uri_weathercompany,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherCompany.value),
+                              period=constants.WEATHERCOMPANY_PERIOD),
+        ]
+
+    def observation_sources_list(self, observations_info: ObservationSourcesInfo) -> typing.List["DataSource"]:
+        return [
+            DataSource.create(vendor="metar", s3_uri=observations_info.s3_uri_metar,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Metar.value),
+                              period=constants.METAR_PERIOD)
+        ]
+
+    def run(self):
+        # clear snapshots outside of calculation range before download
+        # to reduce peak disk usage for long distance forecasts
+        deadline_timestamp = self._session.start_time - self._session.forecast_range - 3600
+        deadline_timestamp = deadline_timestamp - (deadline_timestamp % 3600)
+        self._session.clear_outdated(deadline_timestamp=deadline_timestamp)
+
+        checkout_forecasts(session=self._session,
+                           forecasts_sources=self.forecasts_sources)
+        checkout_sensors(session=self._session,
+                         observations_sources=self.observations_sources)
+
+        self._session.save_meta()
 
 
 def checkout(start_time: int,
@@ -186,10 +241,20 @@ def checkout(start_time: int,
     """
     Checkout specified data into session folder
     """
-    console.log(f"Run [green]checkout[/green] command:\n"
+    console.log(f"Create session:\n"
                 f"- session_path = {session_path}\n"
                 f"- start_time = {start_time} ({format_time(start_time)})\n"
                 f"- end-time = {end_time} ({format_time(end_time)})\n"
+                f"- forecast_range = {forecast_range}\n"
+                f"- session_clear = {session_clear}\n")
+
+    session = Session.create(start_time=start_time,
+                             end_time=end_time,
+                             session_path=session_path,
+                             session_clear=session_clear,
+                             forecast_range=forecast_range)
+
+    console.log(f"Run [green]checkout[/green] command:\n"
                 f"Forecast sources:\n"
                 f"- s3_uri_rainviewer = {forecasts_source.s3_uri_rainviewer}\n"
                 f"- s3_uri_wk = {forecasts_source.s3_uri_wk}\n"
@@ -201,28 +266,7 @@ def checkout(start_time: int,
                 f"Observation sources:\n"
                 f"- s3_uri_metar = {observations_source.s3_uri_metar}")
 
-    if session_clear and os.path.isdir(session_path):
-        with console.status(f"Clear previous session `{session_path}`..."):
-            shutil.rmtree(session_path, ignore_errors=True)
-        console.log(f"Session {session_path} was cleared")
-
-        os.makedirs(session_path, exist_ok=False)
-
-    console.log(f"Start checkout ")
-    session = Session(session_path=session_path,
-                      start_time=start_time,
-                      end_time=end_time,
-                      forecast_range=forecast_range)
-
-    # download data
-    checkout_forecasts(session=session,
-                       forecasts_source=forecasts_source)
-    checkout_sensors(session=session,
-                     observations_source=observations_source)
-
-    # save session meta info
-    session.save_meta()
-
-    deadline_timestamp = session.start_time - session.forecast_range - 3600
-    deadline_timestamp = deadline_timestamp - (deadline_timestamp % 3600)
-    session.clear_outdated(deadline_timestamp=deadline_timestamp)
+    checkout_executor = CheckoutExecutor(session=session,
+                                         forecasts_info=forecasts_source,
+                                         observations_info=observations_source,)
+    checkout_executor.run()

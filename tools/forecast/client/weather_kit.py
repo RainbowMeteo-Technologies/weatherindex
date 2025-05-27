@@ -15,6 +15,9 @@ from typing_extensions import override  # for python <3.12
 console = Console()
 
 
+WK_FORECAST_TYPES = ["hour", "day"]
+
+
 @dataclass(frozen=True)
 class TokenParams:
     team_id: str

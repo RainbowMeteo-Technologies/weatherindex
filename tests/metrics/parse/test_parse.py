@@ -1,3 +1,5 @@
+from enum import Enum
+
 from metrics.parse.parse import ParseSource, _process_source, parse
 from metrics.data_vendor import BaseDataVendor, DataVendor
 from metrics.parse.base_parser import BaseParser
@@ -5,7 +7,7 @@ from metrics.parse.base_parser import BaseParser
 from unittest.mock import MagicMock, patch
 
 
-class UnsupportedVendor(BaseDataVendor):
+class UnsupportedVendor(BaseDataVendor, Enum):
     WeatherTest = "weather-test"
 
 
