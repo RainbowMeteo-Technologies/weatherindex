@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from forecast.client.base import SensorClientBase
+from forecast.req_interface import Response
 from forecast.sensor import Sensor
 from rich.console import Console
 from typing import BinaryIO
@@ -80,8 +81,8 @@ class WeatherKit(SensorClientBase):
         self.token = token
         self.datasets = datasets
 
-    @override
-    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    # @override
+    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         # https://developer.apple.com/documentation/weatherkitrestapi/get_api_v1_weather_language_latitude_longitude
         url = f"https://weatherkit.apple.com/api/v1/weather/en/{lat}/{lon}/"
         headers = {
@@ -93,4 +94,6 @@ class WeatherKit(SensorClientBase):
             "dataSets": self.datasets,
         }
 
-        return await self._native_get(url=url, params=params, headers=headers)
+        resp = await self._native_get(url=url, params=params, headers=headers)
+        resp.forecast = resp.payload
+        return resp
