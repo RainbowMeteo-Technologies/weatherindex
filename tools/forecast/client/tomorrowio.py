@@ -58,10 +58,10 @@ class TomorrowIo(SensorClientBase):
         elif self.forecast_type == "6hours":
             resp = await self._request_6hours_forecast(lon=lon, lat=lat)
         else:
-            resp = Response(error_type="Argument Error", error_message="No valid forecast type was provided")
+            resp = Response()
 
-        if resp.payload is not None:
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat

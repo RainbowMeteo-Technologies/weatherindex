@@ -35,7 +35,6 @@ async def _try_download_file(session: aiohttp.ClientSession, url: str) -> Respon
         try:
             async with session.get(url) as response:
                 if response.status == 200:
-                    # return await response.read()
                     return Response(status=response.status,
                                     payload=(await response.read()))
                 else:
@@ -48,8 +47,6 @@ async def _try_download_file(session: aiohttp.ClientSession, url: str) -> Respon
 
             await asyncio.sleep(sleep_time)
             sleep_time *= 2
-            resp = Response(error_type=type(ex).__name__,
-                            error_message=str(ex))
 
     return resp
 
@@ -58,15 +55,11 @@ def _download_tiles_batch(jobs: list[tuple[str, str]]) -> list[Response]:
 
     async def download_one_tile(session: aiohttp.ClientSession, url: str, file_path: str) -> Response:
         resp = await _try_download_file(session, url)
-        if resp.payload is not None:
-            try:
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "wb") as file:
-                    file.write(resp.payload)
-                    return resp
-            except Exception as e:
-                resp.error_type = type(e).__name__
-                resp.error_message = str(e)
+        if resp.ok:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as file:
+                file.write(resp.payload)
+                return resp
 
         console.log(f"Wasn't able to download tile `{url}`")
         return resp
@@ -98,7 +91,7 @@ class RainViewer(ClientBase):
         url = f"https://api.rainviewer.com/private/{self.token}/weather-maps.json"
 
         resp = await self._native_get(url=url)
-        if resp.payload is not None:
+        if resp.ok:
             return json.loads(resp.payload)
 
         return None
@@ -178,10 +171,7 @@ class RainViewer(ClientBase):
         console.log(f"Downloaded {valid_results} tiles")
         console.log(f"Errors: {len(jobs) - valid_results}")
 
-        self.save_fetching_report(
-            targets=[job[0] for job in jobs],
-            statuses=[resp.error_type is None and resp.payload is not None for resp in responses],
-            error_types=[resp.error_type for resp in responses],
-            error_messages=[resp.error_message for resp in responses],
-            folder=download_path
-        )
+        self.save_fetching_report(folder=download_path,
+                                  targets=[job[0] for job in jobs],
+                                  statuses=[resp.ok for resp in responses],
+                                  codes=[resp.status for resp in responses])

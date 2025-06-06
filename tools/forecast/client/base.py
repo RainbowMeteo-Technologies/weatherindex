@@ -59,13 +59,8 @@ class ClientBase(RequestInterface, ABC):
                              folder: str,
                              targets: list[str],
                              statuses: list[bool],
-                             error_types: list[str] | None = None,
-                             error_messages: list[str] | None = None):
-        report = pd.DataFrame({"target": targets, "status": statuses})
-        if error_types is not None:
-            report["error_types"] = error_types
-        if error_messages is not None:
-            report["error_messages"] = error_messages
+                             codes: list[int]):
+        report = pd.DataFrame({"target": targets, "status": statuses, "code": codes})
         report.to_csv(os.path.join(folder, "fetching-report.csv"), index=False)
 
 
@@ -75,21 +70,22 @@ def _process_sensor_chunk(sensors: list[Sensor],
 
     async def _process_sensor(sensor: Sensor) -> Response:
         resp = await get_json(sensor.lon, sensor.lat)
-        if resp.forecast is not None:
+        if resp.ok:
             try:
                 file_mode = None
-                if isinstance(resp.forecast, str):
+                if isinstance(resp.payload, str):
                     file_mode = "w"
-                elif isinstance(resp.forecast, bytes):
+                elif isinstance(resp.payload, bytes):
                     file_mode = "wb"
                 else:
-                    raise TypeError(f"Expected str or bytes, got {type(resp.forecast).__name__}")
+                    raise TypeError(f"Expected str or bytes, got {type(resp.payload).__name__}")
 
                 with open(os.path.join(download_path, f"{sensor.id}.json"), file_mode) as f:
-                    f.write(resp.forecast)
+                    f.write(resp.payload)
             except Exception as e:
-                resp.error_type = type(e).__name__
-                resp.error_message = str(e)
+                resp.set_failed()
+                return resp
+
         else:
             console.log(f"Wasn't able to get data for {sensor.id}")
         return resp
@@ -125,10 +121,7 @@ class SensorClientBase(ClientBase):
 
         responses = await self.execute_with_batches(self.sensors, op, chunk_size, process_num)
 
-        self.save_fetching_report(
-            targets=[sensor.id for sensor in self.sensors],
-            statuses=[resp.error_type is None and resp.forecast is not None for resp in responses],
-            error_types=[resp.error_type for resp in responses],
-            error_messages=[resp.error_message for resp in responses],
-            folder=download_path
-        )
+        self.save_fetching_report(folder=download_path,
+                                  targets=[sensor.id for sensor in self.sensors],
+                                  statuses=[resp.ok for resp in responses],
+                                  codes=[resp.status for resp in responses])

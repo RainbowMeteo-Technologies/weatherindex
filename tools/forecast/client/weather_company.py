@@ -18,13 +18,13 @@ class WeatherCompany(SensorClientBase):
         super().__init__(sensors)
         self.token = token
 
-    # @override
+    @override
     async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         url = (f"https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}"
                f"&units=s&language=en-US&format=json&apiKey={self.token}")
         resp = await self._native_get(url=url)
-        if resp.payload is not None:
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat
@@ -32,4 +32,4 @@ class WeatherCompany(SensorClientBase):
                 "payload": json.loads(resp.payload)
             })
 
-        return None
+        return resp

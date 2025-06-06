@@ -23,9 +23,8 @@ class Vaisala(SensorClientBase):
         url = (f"https://data.api.xweather.com/conditions/{lat},{lon}?filter=minutelyprecip"
                f"&client_id={self.client_id}&client_secret={self.client_secret}")
         resp = await self._native_get(url=url)
-        if resp.payload is not None:
-
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat

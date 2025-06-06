@@ -18,7 +18,7 @@ class Microsoft(SensorClientBase):
         self.client_id = client_id
         self.subscription_key = subscription_key
 
-    # @override
+    @override
     async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         # https://learn.microsoft.com/en-us/rest/api/maps/weather/get-minute-forecast?view=rest-maps-2023-06-01&tabs=HTTP
         url = (f"https://atlas.microsoft.com/weather/forecast/minute/json?api-version=1.1"
@@ -29,8 +29,8 @@ class Microsoft(SensorClientBase):
         }
 
         resp = await self._native_get(url=url, headers=headers)
-        if resp.payload is not None:
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat

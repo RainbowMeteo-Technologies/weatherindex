@@ -12,11 +12,15 @@ console = Console()
 
 @dataclass
 class Response:
-    status: int | None = None  # http status code
+    status: int = 0  # http status code, 0 if failed for any other reason
     payload: bytes | str | None = None
-    error_type: str | None = None
-    error_message: str | None = None
-    forecast: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return (200 <= self.status < 300) and (self.payload is not None)
+
+    def set_failed(self):
+        self.status = 0
 
 
 class RequestInterface():
@@ -47,11 +51,10 @@ class RequestInterface():
                                             payload=(await resp.read()))
                         else:
                             console.log(f"{resp.status} - {url}")
-                        return Response(status=resp.status, error_type="Downloading error")
+                        return Response(status=resp.status)
 
                 except Exception as e:
-                    return Response(error_type=type(e).__name__,
-                                    error_message=str(e))
+                    return Response()
             return await self._run_with_retries(_try_download)
 
     async def _native_post(self, url: str,
@@ -71,9 +74,8 @@ class RequestInterface():
                                             payload=(await resp.read()))
                         else:
                             console.log(f"{resp.status} - {url}")
-                        return Response(status=resp.status, error_type="Downloading error")
+                        return Response(status=resp.status)
                 except Exception as e:
-                    return Response(error_type=type(e).__name__,
-                                    error_message=str(e))
+                    return Response()
 
             return await self._run_with_retries(_try_download)

@@ -20,6 +20,4 @@ class Rainbow(SensorClientBase):
     @override
     async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         url = f"https://api.rainbow.ai/nowcast/v1/precip/{lon}/{lat}?token={self.token}"
-        resp = await self._native_get(url=url)
-        resp.forecast = resp.payload
-        return resp
+        return await self._native_get(url=url)

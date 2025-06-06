@@ -17,7 +17,7 @@ class MyRadar(SensorClientBase):
         super().__init__(sensors)
         self.subscription_key = sub_key
 
-    # @override
+    @override
     async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         # https://myradar.developer.azure-api.net/api-details#api=forecast-api&operation=get-forecast-latitude-longitude
         url = f"https://api.myradar.dev/forecast/{lat},{lon}?extend=hourly&units=si&lang=en"
@@ -26,5 +26,4 @@ class MyRadar(SensorClientBase):
             "Subscription-Key": self.subscription_key
         }
 
-        resp = await self._native_get(url=url, headers=headers)
-        resp.forecast = resp.payload
+        return await self._native_get(url=url, headers=headers)

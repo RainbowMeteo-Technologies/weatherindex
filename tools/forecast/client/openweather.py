@@ -18,8 +18,8 @@ class OpenWeather(SensorClientBase):
         url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={self.token}"
 
         resp = await self._native_get(url=url)
-        if resp.payload is not None:
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat

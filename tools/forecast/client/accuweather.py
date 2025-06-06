@@ -22,8 +22,8 @@ class AccuWeather(SensorClientBase):
     async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         url = f"http://dataservice.accuweather.com/forecasts/v1/minute?q={lat},{lon}&apikey={self.token}"
         resp = await self._native_get(url=url)
-        if resp.payload is not None:
-            resp.forecast = json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat
