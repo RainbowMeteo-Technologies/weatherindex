@@ -166,8 +166,8 @@ class RainViewer(ClientBase):
                                                     chunk_size=BATCH_SIZE,
                                                     process_num=process_num)
 
-        # failed result could be either False or exception
-        valid_results = sum([1 for resp in responses if resp.error_type is None and resp.payload is not None])
+        # Count successful responses
+        valid_results = sum([1 for resp in responses if resp.ok])
         console.log(f"Downloaded {valid_results} tiles")
         console.log(f"Errors: {len(jobs) - valid_results}")
 
