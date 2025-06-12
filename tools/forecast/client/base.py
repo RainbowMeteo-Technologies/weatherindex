@@ -1,10 +1,11 @@
 import asyncio
 import os
 import pickle
+import pandas as pd
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
-from forecast.req_interface import RequestInterface
+from forecast.req_interface import RequestInterface, Response
 from forecast.sensor import Sensor
 from functools import partial
 from itertools import islice
@@ -54,28 +55,42 @@ class ClientBase(RequestInterface, ABC):
                            chunk_size: int | None = None):
         pass
 
+    def save_fetching_report(self,
+                             folder: str,
+                             targets: list[str],
+                             statuses: list[bool],
+                             codes: list[int]):
+        report = pd.DataFrame({"target": targets, "status": statuses, "code": codes})
+        report.to_csv(os.path.join(folder, "fetching-report.csv"), index=False)
+
 
 def _process_sensor_chunk(sensors: list[Sensor],
                           download_path: str,
-                          get_json: Callable[[float, float], Awaitable[str | bytes | None]]) -> list[object]:
+                          get_json: Callable[[float, float], Awaitable[Response]]) -> list[Response]:
 
-    async def _process_sensor(sensor: Sensor) -> None:
-        forecast = await get_json(sensor.lon, sensor.lat)
-        if forecast is not None:
-            file_mode = None
-            if isinstance(forecast, str):
-                file_mode = "w"
-            elif isinstance(forecast, bytes):
-                file_mode = "wb"
-            else:
-                raise TypeError(f"Expected str or bytes, got {type(forecast).__name__}")
+    async def _process_sensor(sensor: Sensor) -> Response:
+        resp = await get_json(sensor.lon, sensor.lat)
+        if resp.ok:
+            try:
+                file_mode = None
+                if isinstance(resp.payload, str):
+                    file_mode = "w"
+                elif isinstance(resp.payload, bytes):
+                    file_mode = "wb"
+                else:
+                    raise TypeError(f"Expected str or bytes, got {type(resp.payload).__name__}")
 
-            with open(os.path.join(download_path, f"{sensor.id}.json"), file_mode) as f:
-                f.write(forecast)
+                with open(os.path.join(download_path, f"{sensor.id}.json"), file_mode) as f:
+                    f.write(resp.payload)
+            except Exception as e:
+                resp.set_failed()
+                return resp
+
         else:
             console.log(f"Wasn't able to get data for {sensor.id}")
+        return resp
 
-    async def _process(sensors: list[Sensor]) -> list[object]:
+    async def _process(sensors: list[Sensor]) -> list[Response]:
         jobs = [_process_sensor(sensor) for sensor in sensors]
         return await asyncio.gather(*jobs, return_exceptions=True)
 
@@ -87,7 +102,7 @@ class SensorClientBase(ClientBase):
         self.sensors = sensors
 
     @abstractmethod
-    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         raise NotImplementedError("Getting JSON forecast in point was not implemented")
 
     @override
@@ -104,4 +119,9 @@ class SensorClientBase(ClientBase):
                      download_path=download_path,
                      get_json=self._get_json_forecast_in_point)
 
-        await self.execute_with_batches(self.sensors, op, chunk_size, process_num)
+        responses = await self.execute_with_batches(self.sensors, op, chunk_size, process_num)
+
+        self.save_fetching_report(folder=download_path,
+                                  targets=[sensor.id for sensor in self.sensors],
+                                  statuses=[resp.ok for resp in responses],
+                                  codes=[resp.status for resp in responses])
