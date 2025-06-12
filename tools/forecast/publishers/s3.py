@@ -14,6 +14,8 @@ class S3Publisher(Publisher):
         self._s3_uri = s3_uri
 
     async def publish(self, snapshot_path: str) -> None:
+        console.log(f"Publishing {snapshot_path} to {self._s3_uri}")
+        
         # Parse the URL
         parsed_url = urlparse(self._s3_uri)
 

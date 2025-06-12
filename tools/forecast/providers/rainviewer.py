@@ -145,9 +145,7 @@ class RainViewer(BaseParallelExecutionProvider, RequestInterface):
         console.log(f"Downloading {len(jobs)} tiles")
 
         results = await self.execute_with_batches(args=jobs,
-                                                  chunk_func=_download_tiles_batch,
-                                                  chunk_size=self._chunk_size,
-                                                  process_num=self._process_num)
+                                                  chunk_func=_download_tiles_batch)
 
         # failed result could be either False or exception
         valid_results = sum([1 for result in results if result is True])

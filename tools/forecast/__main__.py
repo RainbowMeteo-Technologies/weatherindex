@@ -6,7 +6,7 @@ from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
 from forecast.providers.rainbow import Rainbow
-from forecast.providers.rainviewer import RainViewer
+from forecast.providers.rainviewer import RainViewer, BATCH_SIZE
 from forecast.providers.tomorrowio import TomorrowIo, TOMORROW_FORECAST_TYPES
 from forecast.providers.vaisala import Vaisala
 from forecast.providers.weather_company import WeatherCompany
@@ -15,11 +15,19 @@ from forecast.providers.weather_kit import WeatherKit, Token, TokenParams, WK_FO
 from forecast.sensor import Sensor
 from rich.console import Console
 
+from forecast.publishers.publisher import Publisher, NullPublisher
 from forecast.publishers.s3 import S3Publisher
 from forecast.providers.provider import BaseProvider
 
 
 console = Console()
+
+
+def _create_publisher(args: argparse.Namespace) -> Publisher:
+    if args.s3_uri is not None:
+        return S3Publisher(args.s3_uri)
+    else:
+        return NullPublisher()
 
 
 def _create_wk(args: argparse.Namespace) -> WeatherKit:
@@ -32,7 +40,7 @@ def _create_wk(args: argparse.Namespace) -> WeatherKit:
         token_params = TokenParams.from_json(file)
         token = Token.generate(token_params)
 
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -47,7 +55,7 @@ def _create_wk(args: argparse.Namespace) -> WeatherKit:
 
 
 def _create_accuweather(args: argparse.Namespace) -> AccuWeather:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -61,7 +69,7 @@ def _create_accuweather(args: argparse.Namespace) -> AccuWeather:
 
 
 def _create_myradar(args: argparse.Namespace) -> MyRadar:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -75,7 +83,7 @@ def _create_myradar(args: argparse.Namespace) -> MyRadar:
 
 
 def _create_microsoft(args: argparse.Namespace) -> Microsoft:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -90,7 +98,7 @@ def _create_microsoft(args: argparse.Namespace) -> Microsoft:
 
 
 def _create_tomorrowio(args: argparse.Namespace) -> TomorrowIo:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -105,7 +113,7 @@ def _create_tomorrowio(args: argparse.Namespace) -> TomorrowIo:
 
 
 def _create_viasala(args: argparse.Namespace) -> Vaisala:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -120,7 +128,7 @@ def _create_viasala(args: argparse.Namespace) -> Vaisala:
 
 
 def _create_open_weather(args: argparse.Namespace) -> OpenWeather:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -134,7 +142,7 @@ def _create_open_weather(args: argparse.Namespace) -> OpenWeather:
 
 
 def _create_rainbow(args: argparse.Namespace) -> Rainbow:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -148,17 +156,19 @@ def _create_rainbow(args: argparse.Namespace) -> Rainbow:
 
 
 def _create_rainviewer(args: argparse.Namespace) -> RainViewer:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
+    chunk_size = args.chunk_size if args.chunk_size is not None else BATCH_SIZE
+
     return RainViewer(download_path=args.download_path,
                       publisher=publisher,
                       process_num=args.process_num,
-                      chunk_size=args.chunk_size,
+                      chunk_size=chunk_size,
                       frequency=args.download_period,
                       token=args.token, zoom=args.zoom)
 
 
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
-    publisher = S3Publisher(args.s3_uri)
+    publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
@@ -185,14 +195,20 @@ def _add_sensors_params(parser: argparse.ArgumentParser):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download forecast for sensors list")
+    
+    # Storage and publish destination
     parser.add_argument("--download-path", type=str, dest="download_path", required=True,
                         help="Path where to put downloaded data")
     parser.add_argument("--s3-uri", type=str, dest="s3_uri", required=False, default=None,
                         help="S3 URI to upload data")
+    
+    # Download timing
     parser.add_argument("--download-period", type=int, dest="download_period", default=600, required=False,
                         help="Download period in seconds")
     parser.add_argument("--download-delay", type=int, dest="download_delay", default=0, required=False,
                         help="Download delay in seconds")
+
+    # Parallel execution
     parser.add_argument("--process-num", type=int, dest="process_num", default=None, required=False,
                         help="Number of processes")
     parser.add_argument("--chunk-size", type=int, dest="chunk_size", default=None, required=False,

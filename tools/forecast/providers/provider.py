@@ -60,7 +60,7 @@ class BaseProvider:
             start_time = Timestamp.get_current()
             timestamp = Timestamp.floor(start_time, self._frequency)
 
-            snapshot_path = os.path.join(self._download_path, str(timestamp))
+            snapshot_path = self.snapshot_path(timestamp)
 
             shutil.rmtree(snapshot_path, ignore_errors=True)
             os.makedirs(snapshot_path, exist_ok=False)
@@ -74,7 +74,7 @@ class BaseProvider:
             archive_path = f"{snapshot_path}.zip"
 
             # Publish to the storage
-            await self._publisher.publish(file_path=archive_path)
+            await self._publisher.publish(snapshot_path=archive_path)
 
             # Remove the file
             try:
@@ -84,6 +84,9 @@ class BaseProvider:
                 console.log(f"Error removing file {archive_path}: {e}")
 
             console.log(f"It took {Timestamp.get_current() - start_time} seconds to download data")
+
+    def snapshot_path(self, timestamp: int) -> str:
+        return os.path.join(self._download_path, str(timestamp))
 
     @abstractmethod
     async def fetch_job(self, timestamp: int):
@@ -127,6 +130,8 @@ class BaseParallelExecutionProvider(BaseProvider):
         self._process_num = process_num
         self._chunk_size = chunk_size
 
+        console.log(f"Using {self._process_num} processes and {self._chunk_size} chunk size")
+
     async def execute_with_batches(self,
                                    args: list[T],
                                    chunk_func: Callable[[list[T]], list[R]]) -> list[R]:
@@ -134,7 +139,6 @@ class BaseParallelExecutionProvider(BaseProvider):
         with ProcessPoolExecutor(max_workers=self._process_num) as pool:
             tasks = [loop.run_in_executor(pool, chunk_func, chunk) for chunk in batched(args, self._chunk_size)]
             chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
-        print("chunk_results", chunk_results)
         return [item for chunk in chunk_results for item in chunk]
 
 
@@ -148,9 +152,9 @@ def _process_sensor_chunk(sensors: list[Sensor],
             if forecast is not None:
                 file_mode = None
                 if isinstance(forecast, str):
-                    file_mode = "w+"
+                    file_mode = "w"
                 elif isinstance(forecast, bytes):
-                    file_mode = "wb+"
+                    file_mode = "wb"
                 else:
                     raise TypeError(f"Expected str or bytes, got {type(forecast).__name__}")
 
@@ -182,6 +186,7 @@ class BaseForecastInPointProvider(BaseParallelExecutionProvider):
                          **kwargs)
 
         self.sensors = sensors
+        console.log(f"Requesting forecast for {len(self.sensors)} sensors")
 
     @abstractmethod
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
@@ -189,7 +194,7 @@ class BaseForecastInPointProvider(BaseParallelExecutionProvider):
 
     @override
     async def fetch_job(self, timestamp: int):
-        snapshot_path = os.path.join(self._download_path, str(timestamp))
+        snapshot_path = self.snapshot_path(timestamp)
 
         op = partial(_process_sensor_chunk,
                      download_path=snapshot_path,
