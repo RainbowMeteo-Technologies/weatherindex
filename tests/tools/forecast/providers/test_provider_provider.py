@@ -3,9 +3,11 @@ import json
 import os
 import pytest
 
-from forecast.client.base import ClientBase, SensorClientBase, batched
+from forecast.providers.provider import BaseForecastInPointProvider, batched
 from forecast.sensor import Sensor
 from typing import List
+from typing_extensions import override
+from unittest.mock import MagicMock
 
 
 @pytest.mark.parametrize("input_data,batch_size,expected", [
@@ -32,29 +34,39 @@ def test_batched_invalid_size(batch_size):
         list(batched("ABC", batch_size))
 
 
-class DummySensorClient(SensorClientBase):
-    async def _get_json_forecast_in_point(self, lon: float, lat: float):
+class DummySensorProvider(BaseForecastInPointProvider):
+    @override
+    async def get_json_forecast_in_point(self, lon: float, lat: float):
         await asyncio.sleep(1)
         return json.dumps({"test": "data", "lon": lon, "lat": lat})
 
 
 @pytest.mark.asyncio
-async def test_sensor_client_base_forecast(tmp_path):
+async def test_sensor_provider_base_forecast(tmp_path):
 
     sensors = [Sensor(id=f"test{ind}",
                       lon=10.0,
                       lat=20.0,
                       country="country") for ind in range(800)]
 
-    client = DummySensorClient(sensors)
+    timestamp = 1718236800
 
     download_dir = str(tmp_path)
 
-    await client.get_forecast(download_dir, process_num=8)
+    snapshot_path = os.path.join(download_dir, str(timestamp))
+    os.makedirs(snapshot_path, exist_ok=True)
+
+    client = DummySensorProvider(sensors,
+                                 download_path=download_dir,
+                                 publisher=None,
+                                 process_num=8,
+                                 chunk_size=100)
+
+    await client.fetch_job(timestamp=timestamp)
 
     # Assert that each sensor produced a file with the expected contents
     for s in sensors:
-        p = tmp_path / f"{s.id}.json"
+        p = tmp_path / str(timestamp) / f"{s.id}.json"
         assert p.exists(), f"Missing output file for sensor {s.id}"
         data = json.loads(p.read_text())
         assert data == {"test": "data", "lon": s.lon, "lat": s.lat}

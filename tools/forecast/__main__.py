@@ -1,19 +1,22 @@
 import argparse
 import asyncio
-from forecast.client.accuweather import AccuWeather
-from forecast.client.microsoft import Microsoft
-from forecast.client.myradar import MyRadar
-from forecast.client.openweather import OpenWeather
-from forecast.client.rainbow import Rainbow
-from forecast.client.rainviewer import RainViewer
-from forecast.client.tomorrowio import TOMORROW_FORECAST_TYPES, TomorrowIo
-from forecast.client.vaisala import Vaisala
-from forecast.client.weather_company import WeatherCompany
-from forecast.client.weather_kit import WeatherKit, Token, TokenParams, WK_FORECAST_TYPES
 
-from forecast.downloader import ForecastDownloader
+from forecast.providers.accuweather import AccuWeather
+from forecast.providers.microsoft import Microsoft
+from forecast.providers.myradar import MyRadar
+from forecast.providers.openweather import OpenWeather
+from forecast.providers.rainbow import Rainbow
+from forecast.providers.rainviewer import RainViewer
+from forecast.providers.tomorrowio import TomorrowIo, TOMORROW_FORECAST_TYPES
+from forecast.providers.vaisala import Vaisala
+from forecast.providers.weather_company import WeatherCompany
+from forecast.providers.weather_kit import WeatherKit, Token, TokenParams, WK_FORECAST_TYPES
+
 from forecast.sensor import Sensor
 from rich.console import Console
+
+from forecast.publishers.s3 import S3Publisher
+from forecast.providers.provider import BaseProvider
 
 
 console = Console()
@@ -29,83 +32,143 @@ def _create_wk(args: argparse.Namespace) -> WeatherKit:
         token_params = TokenParams.from_json(file)
         token = Token.generate(token_params)
 
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return WeatherKit(token=token.token,
+    return WeatherKit(download_path=args.download_path,
+                      publisher=publisher,
+                      process_num=args.process_num,
+                      chunk_size=args.chunk_size,
+                      frequency=args.download_period,
+                      token=token.token,
                       datasets=datasets,
                       sensors=sensors)
 
 
 def _create_accuweather(args: argparse.Namespace) -> AccuWeather:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return AccuWeather(token=args.token,
+    return AccuWeather(download_path=args.download_path,
+                       publisher=publisher,
+                       process_num=args.process_num,
+                       chunk_size=args.chunk_size,
+                       frequency=args.download_period,
+                       token=args.token,
                        sensors=sensors)
 
 
 def _create_myradar(args: argparse.Namespace) -> MyRadar:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return MyRadar(sub_key=args.key,
+    return MyRadar(download_path=args.download_path,
+                   publisher=publisher,
+                   process_num=args.process_num,
+                   chunk_size=args.chunk_size,
+                   frequency=args.download_period,
+                   sub_key=args.key,
                    sensors=sensors)
 
 
 def _create_microsoft(args: argparse.Namespace) -> Microsoft:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return Microsoft(cliend_id=args.client_id,
+    return Microsoft(download_path=args.download_path,
+                     publisher=publisher,
+                     process_num=args.process_num,
+                     chunk_size=args.chunk_size,
+                     frequency=args.download_period,
+                     cliend_id=args.client_id,
                      subscription_key=args.subscription_key,
                      sensors=sensors)
 
 
 def _create_tomorrowio(args: argparse.Namespace) -> TomorrowIo:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return TomorrowIo(token=args.token,
+    return TomorrowIo(download_path=args.download_path,
+                      publisher=publisher,
+                      process_num=args.process_num,
+                      chunk_size=args.chunk_size,
+                      frequency=args.download_period,
+                      token=args.token,
                       forecast_type=args.forecast_type,
                       sensors=sensors)
 
 
 def _create_viasala(args: argparse.Namespace) -> Vaisala:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return Vaisala(client_id=args.client_id,
+    return Vaisala(download_path=args.download_path,
+                   publisher=publisher,
+                   process_num=args.process_num,
+                   chunk_size=args.chunk_size,
+                   frequency=args.download_period,
+                   client_id=args.client_id,
                    client_secret=args.client_secret,
                    sensors=sensors)
 
 
 def _create_open_weather(args: argparse.Namespace) -> OpenWeather:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return OpenWeather(token=args.token,
+    return OpenWeather(download_path=args.download_path,
+                       publisher=publisher,
+                       process_num=args.process_num,
+                       chunk_size=args.chunk_size,
+                       frequency=args.download_period,
+                       token=args.token,
                        sensors=sensors)
 
 
 def _create_rainbow(args: argparse.Namespace) -> Rainbow:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return Rainbow(token=args.token,
+    return Rainbow(download_path=args.download_path,
+                   publisher=publisher,
+                   process_num=args.process_num,
+                   chunk_size=args.chunk_size,
+                   frequency=args.download_period,
+                   token=args.token,
                    sensors=sensors)
 
 
 def _create_rainviewer(args: argparse.Namespace) -> RainViewer:
-    return RainViewer(token=args.token, zoom=args.zoom)
+    publisher = S3Publisher(args.s3_uri)
+    return RainViewer(download_path=args.download_path,
+                      publisher=publisher,
+                      process_num=args.process_num,
+                      chunk_size=args.chunk_size,
+                      frequency=args.download_period,
+                      token=args.token, zoom=args.zoom)
 
 
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
+    publisher = S3Publisher(args.s3_uri)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
 
-    return WeatherCompany(token=args.token,
-                          sensors=sensors)
+    return WeatherCompany(download_path=args.download_path,
+                          publisher=publisher,
+                          process_num=args.process_num,
+                          chunk_size=args.chunk_size,
+                          frequency=args.download_period,
+                          sensors=sensors,
+                          token=args.token)
 
 
 def _add_sensors_params(parser: argparse.ArgumentParser):
@@ -126,16 +189,14 @@ if __name__ == "__main__":
                         help="Path where to put downloaded data")
     parser.add_argument("--s3-uri", type=str, dest="s3_uri", required=False, default=None,
                         help="S3 URI to upload data")
-    parser.add_argument("--process-num", type=int, dest="process_num", default=64,
-                        help="Number of processes")
-    parser.add_argument("--days", type=int, dest="days_num", default=argparse.SUPPRESS, required=False,
-                        help="Number of days to download data")
-    parser.add_argument("--download-period", type=int, dest="download_period", default=3600, required=False,
+    parser.add_argument("--download-period", type=int, dest="download_period", default=600, required=False,
                         help="Download period in seconds")
     parser.add_argument("--download-delay", type=int, dest="download_delay", default=0, required=False,
                         help="Download delay in seconds")
-    parser.add_argument("--keep-local-snapshots", dest="keep_local_snapshots", action="store_true", required=False,
-                        help="Keep local snapshots after upload to S3")
+    parser.add_argument("--process-num", type=int, dest="process_num", default=None, required=False,
+                        help="Number of processes")
+    parser.add_argument("--chunk-size", type=int, dest="chunk_size", default=None, required=False,
+                        help="Chunk size")
 
     subparser = parser.add_subparsers(dest="provider", help="Available intergrations")
 
@@ -223,15 +284,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    forecast_downloader = ForecastDownloader(download_path=args.download_path,
-                                             s3_uri=args.s3_uri,
-                                             process_num=args.process_num,
-                                             download_period=args.download_period,
-                                             client_initializer=lambda: args.func(args),
-                                             keep_local_snapshots=args.keep_local_snapshots)
+    provider: BaseProvider = args.func(args)
 
-    snapshots_to_download = None
-    if "days_num" in args:
-        snapshots_to_download = args.days_num * 24
-
-    asyncio.run(forecast_downloader.run(snapshots_to_download=snapshots_to_download))
+    asyncio.run(provider.run())

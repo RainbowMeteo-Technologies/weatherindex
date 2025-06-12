@@ -3,12 +3,17 @@ import os
 import pytest
 import tempfile
 
-from forecast.client.rainviewer import RainViewer
+from forecast.providers.rainviewer import RainViewer
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def test_rainviewer_smoke():
-    client = RainViewer(token="test_token", zoom=1)
+    client = RainViewer(token="test_token",
+                        zoom=1,
+                        download_path="test_download_path",
+                        publisher=MagicMock(),
+                        process_num=1,
+                        chunk_size=1)
     assert isinstance(client, RainViewer)
     assert client.token == "test_token"
     assert client.zoom == 1
@@ -50,9 +55,14 @@ async def test_get_forecast(mock_get, mock_execute):
         download_path = os.path.join(temp_dir, str(snapshot_timestamp))
         os.makedirs(download_path)
 
-        client = RainViewer(token="test_token", zoom=zoom_level)
+        client = RainViewer(token="test_token",
+                            zoom=zoom_level,
+                            download_path=download_path,
+                            publisher=MagicMock(),
+                            process_num=1,
+                            chunk_size=1)
 
-        await client.get_forecast(download_path=download_path)
+        await client.fetch_job(timestamp=1234567890)
 
         # Verify metadata was requested
         mock_get.assert_called_once_with(url="https://api.rainviewer.com/private/test_token/weather-maps.json")
@@ -74,8 +84,13 @@ async def test_get_forecast_metadata_error(mock_get):
         download_path = os.path.join(temp_dir, "1234567890")
         os.makedirs(download_path)
 
-        client = RainViewer(token="test_token", zoom=1)
-        await client.get_forecast(download_path=download_path)
+        client = RainViewer(token="test_token",
+                            zoom=1,
+                            download_path=download_path,
+                            publisher=MagicMock(),
+                            process_num=1,
+                            chunk_size=1)
+        await client.fetch_job(timestamp=1234567890)
 
         # Verify metadata request was made
         mock_get.assert_called_once_with(url="https://api.rainviewer.com/private/test_token/weather-maps.json")
@@ -102,8 +117,14 @@ async def test_get_forecast_snapshot_not_available(mock_get):
         download_path = os.path.join(temp_dir, "1234567891")
         os.makedirs(download_path)
 
-        client = RainViewer(token="test_token", zoom=1)
-        await client.get_forecast(download_path=download_path)
+        client = RainViewer(token="test_token",
+                            zoom=1,
+                            download_path=download_path,
+                            publisher=MagicMock(),
+                            process_num=1,
+                            chunk_size=1)
+
+        await client.fetch_job(timestamp=1234567891)
 
         # Verify metadata was requested
         mock_get.assert_called_once_with(url="https://api.rainviewer.com/private/test_token/weather-maps.json")

@@ -1,8 +1,9 @@
 import pytest
 
-from forecast.client.base import SensorClientBase
-from forecast.client.weather_company import WeatherCompany
+from forecast.providers.provider import BaseProvider
+from forecast.providers.weather_company import WeatherCompany
 from forecast.sensor import Sensor
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -14,7 +15,9 @@ def test_sensors():
 
 
 def test_weather_company_smoke(test_sensors):
-    client = WeatherCompany(sensors=test_sensors, token="test_token")
+    client = WeatherCompany(sensors=test_sensors, token="test_token",
+                            download_path="test_download_path",
+                            publisher=MagicMock())
     assert isinstance(client, WeatherCompany)
-    assert isinstance(client, SensorClientBase)
+    assert isinstance(client, BaseProvider)
     assert len(client.sensors) == 2
