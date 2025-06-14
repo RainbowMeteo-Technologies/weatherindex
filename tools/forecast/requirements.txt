@@ -2,7 +2,6 @@ aioboto3~=12.1.0
 aiohttp~=3.11.18
 geopandas~=0.12.2
 PyJWT[crypto]~=2.6.0
-prometheus_client~=0.21.1
 rich~=13.3.3
 tqdm~=4.67.1
 typing_extensions~=4.13.2

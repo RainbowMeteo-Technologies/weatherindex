@@ -1,18 +1,17 @@
-import asyncio
 import json
 import jwt
-import os
 
 from dataclasses import dataclass
 from datetime import datetime
-from forecast.client.base import SensorClientBase
-from forecast.sensor import Sensor
-from rich.console import Console
+
+from forecast.providers.provider import BaseForecastInPointProvider
+from forecast.utils.req_interface import RequestInterface
+
 from typing import BinaryIO
 from typing_extensions import override  # for python <3.12
 
 
-console = Console()
+WK_FORECAST_TYPES = ["hour", "day"]
 
 
 @dataclass(frozen=True)
@@ -71,14 +70,27 @@ class Token:
         return Token(token, expiry_time)
 
 
-class WeatherKit(SensorClientBase):
-    def __init__(self, token: str, datasets: str, sensors: list[Sensor]):
-        super().__init__(sensors)
-        self.token = token
-        self.datasets = datasets
+class WeatherKit(BaseForecastInPointProvider, RequestInterface):
+    def __init__(self, config_path: str, forecast_type: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if forecast_type == "hour":
+            self.datasets = "forecastNextHour"
+        elif forecast_type == "day":
+            self.datasets = "currentWeather,forecastHourly"
+
+        self.config_path = config_path
+        self.token = None
+
+    def _generate_token(self) -> None:
+        with open(self.config_path, "r") as file:
+            token_params = TokenParams.from_json(file)
+            token = Token.generate(token_params)
+
+            self.token = token.token
 
     @override
-    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
         # https://developer.apple.com/documentation/weatherkitrestapi/get_api_v1_weather_language_latitude_longitude
         url = f"https://weatherkit.apple.com/api/v1/weather/en/{lat}/{lon}/"
         headers = {
@@ -91,3 +103,8 @@ class WeatherKit(SensorClientBase):
         }
 
         return await self._native_get(url=url, params=params, headers=headers)
+
+    @override
+    async def fetch_job(self, timestamp: int):
+        self._generate_token()
+        await super().fetch_job(timestamp)
