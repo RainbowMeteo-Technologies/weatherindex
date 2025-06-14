@@ -71,10 +71,23 @@ class Token:
 
 
 class WeatherKit(BaseForecastInPointProvider, RequestInterface):
-    def __init__(self, token: str, datasets: str, *args, **kwargs):
+    def __init__(self, config_path: str, forecast_type: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.token = token
-        self.datasets = datasets
+
+        if forecast_type == "hour":
+            self.datasets = "forecastNextHour"
+        elif forecast_type == "day":
+            self.datasets = "currentWeather,forecastHourly"
+
+        self.config_path = config_path
+        self.token = None
+
+    def _generate_token(self) -> None:
+        with open(self.config_path, "r") as file:
+            token_params = TokenParams.from_json(file)
+            token = Token.generate(token_params)
+
+            self.token = token.token
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
@@ -90,3 +103,8 @@ class WeatherKit(BaseForecastInPointProvider, RequestInterface):
         }
 
         return await self._native_get(url=url, params=params, headers=headers)
+
+    @override
+    async def fetch_job(self, timestamp: int):
+        self._generate_token()
+        await super().fetch_job(timestamp)

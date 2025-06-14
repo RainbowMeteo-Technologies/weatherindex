@@ -16,8 +16,8 @@ def test_sensors():
 
 def test_weather_kit_smoke(test_sensors):
     client = WeatherKit(sensors=test_sensors,
-                        token="token",
-                        datasets="datasets",
+                        config_path="config.json",
+                        forecast_type="hour",
                         download_path="test_download_path",
                         publisher=MagicMock())
     assert isinstance(client, WeatherKit)

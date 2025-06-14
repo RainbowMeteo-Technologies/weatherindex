@@ -79,6 +79,7 @@ class BaseProvider:
             # Remove the file
             try:
                 console.log(f"Removing file {archive_path}")
+                shutil.rmtree(snapshot_path, ignore_errors=True)
                 os.remove(archive_path)
             except Exception as e:
                 console.log(f"Error removing file {archive_path}: {e}")
