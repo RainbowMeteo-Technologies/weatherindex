@@ -76,8 +76,10 @@ class RainViewer(BaseParallelExecutionProvider, RequestInterface):
     TILE_SIZE = 256
     METADATA_RETRY_DELAY = 15
 
-    def __init__(self, token: str, zoom: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, token: str, zoom: int, chunk_size: int | None = None, *args, **kwargs):
+        chunk_size = chunk_size if chunk_size is not None else BATCH_SIZE
+
+        super().__init__(chunk_size=chunk_size, *args, **kwargs)
         self.token = token
         self.zoom = zoom
 

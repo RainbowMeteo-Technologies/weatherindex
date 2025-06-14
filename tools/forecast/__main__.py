@@ -6,11 +6,11 @@ from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
 from forecast.providers.rainbow import Rainbow
-from forecast.providers.rainviewer import RainViewer, BATCH_SIZE
+from forecast.providers.rainviewer import RainViewer
 from forecast.providers.tomorrowio import TomorrowIo, TOMORROW_FORECAST_TYPES
 from forecast.providers.vaisala import Vaisala
 from forecast.providers.weather_company import WeatherCompany
-from forecast.providers.weather_kit import WeatherKit, Token, TokenParams, WK_FORECAST_TYPES
+from forecast.providers.weather_kit import WeatherKit, WK_FORECAST_TYPES
 
 from forecast.sensor import Sensor
 from rich.console import Console
@@ -31,15 +31,6 @@ def _create_publisher(args: argparse.Namespace) -> Publisher:
 
 
 def _create_wk(args: argparse.Namespace) -> WeatherKit:
-    if args.forecast_type == "hour":
-        datasets = "forecastNextHour"
-    elif args.forecast_type == "day":
-        datasets = "currentWeather,forecastHourly"
-
-    with open(args.token, "r") as file:
-        token_params = TokenParams.from_json(file)
-        token = Token.generate(token_params)
-
     publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
                               include_countries=args.include_countries)
@@ -49,8 +40,8 @@ def _create_wk(args: argparse.Namespace) -> WeatherKit:
                       process_num=args.process_num,
                       chunk_size=args.chunk_size,
                       frequency=args.download_period,
-                      token=token.token,
-                      datasets=datasets,
+                      config_path=args.config_path,
+                      forecast_type=args.forecast_type,
                       sensors=sensors)
 
 
@@ -157,12 +148,11 @@ def _create_rainbow(args: argparse.Namespace) -> Rainbow:
 
 def _create_rainviewer(args: argparse.Namespace) -> RainViewer:
     publisher = _create_publisher(args)
-    chunk_size = args.chunk_size if args.chunk_size is not None else BATCH_SIZE
 
     return RainViewer(download_path=args.download_path,
                       publisher=publisher,
                       process_num=args.process_num,
-                      chunk_size=chunk_size,
+                      chunk_size=args.chunk_size,
                       frequency=args.download_period,
                       token=args.token, zoom=args.zoom)
 
@@ -195,13 +185,13 @@ def _add_sensors_params(parser: argparse.ArgumentParser):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download forecast for sensors list")
-    
+
     # Storage and publish destination
     parser.add_argument("--download-path", type=str, dest="download_path", required=True,
                         help="Path where to put downloaded data")
     parser.add_argument("--s3-uri", type=str, dest="s3_uri", required=False, default=None,
                         help="S3 URI to upload data")
-    
+
     # Download timing
     parser.add_argument("--download-period", type=int, dest="download_period", default=600, required=False,
                         help="Download period in seconds")
@@ -219,7 +209,7 @@ if __name__ == "__main__":
     # WeatherKit
     wk_parser = subparser.add_parser("wk", help="WeatherKit")
     _add_sensors_params(wk_parser)
-    wk_parser.add_argument("--token", type=str, required=True,
+    wk_parser.add_argument("--config-path", type=str, required=True,
                            help="Path to the token configuration file")
     wk_parser.add_argument("--forecast-type", type=str, dest="forecast_type", default="hour", choices=WK_FORECAST_TYPES,
                            help=f"Forecast type. One value of {WK_FORECAST_TYPES}")

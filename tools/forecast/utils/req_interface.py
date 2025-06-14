@@ -30,9 +30,9 @@ class RequestInterface():
             async def _try_download() -> bytes | None:
                 client_timeout = aiohttp.ClientTimeout(total=timeout)
                 try:
-                    async with session.get(url, 
-                                           headers=headers, 
-                                           params=params, 
+                    async with session.get(url,
+                                           headers=headers,
+                                           params=params,
                                            timeout=client_timeout) as resp:
                         if resp.ok:
                             return await resp.read()
@@ -56,9 +56,9 @@ class RequestInterface():
             async def _try_download() -> bytes | None:
                 try:
                     client_timeout = aiohttp.ClientTimeout(total=timeout)
-                    async with session.post(url, 
-                                            headers=headers, 
-                                            json=body, 
+                    async with session.post(url,
+                                            headers=headers,
+                                            json=body,
                                             timeout=client_timeout) as resp:
                         if resp.ok:
                             return await resp.read()
