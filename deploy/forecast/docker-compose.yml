@@ -78,7 +78,7 @@ services:
       --download-path /storage
       --s3-uri ${S3_URI_RAINBOW}
       --process-num 8
-      --chunk-size 20
+      --chunk-size 15
       --download-period 600
       rainbow
       --sensors /sensors.csv
