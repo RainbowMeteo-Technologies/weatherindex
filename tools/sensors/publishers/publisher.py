@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from sensors.utils.memory_zip import MemoryZip
 
 
 class Publisher(ABC):

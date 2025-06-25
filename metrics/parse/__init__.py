@@ -9,12 +9,12 @@ from metrics.parse.forecast.weather_kit import WeatherKitParser
 from metrics.parse.observation.metar import MetarParser
 
 PROVIDERS_PARSERS = {
-    DataVendor.AccuWeather: AccuWeatherParser,
-    DataVendor.WeatherKit: WeatherKitParser,
-    DataVendor.TomorrowIo: TomorrowIoParser,
-    DataVendor.Vaisala: VaisalaParser,
-    DataVendor.RainbowAi: RainbowAiParser,
-    DataVendor.WeatherCompany: WeatherCompanyParser,
+    DataVendor.AccuWeather.value: AccuWeatherParser,
+    DataVendor.WeatherKit.value: WeatherKitParser,
+    DataVendor.TomorrowIo.value: TomorrowIoParser,
+    DataVendor.Vaisala.value: VaisalaParser,
+    DataVendor.RainbowAi.value: RainbowAiParser,
+    DataVendor.WeatherCompany.value: WeatherCompanyParser,
 
-    DataVendor.Metar: MetarParser,
+    DataVendor.Metar.value: MetarParser,
 }

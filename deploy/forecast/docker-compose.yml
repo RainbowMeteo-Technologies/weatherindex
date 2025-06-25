@@ -16,7 +16,7 @@ services:
       python -m forecast
       --download-path /storage
       --s3-uri ${S3_URI_ACCU}
-      --process-num 32
+      --process-num 16
       --download-period 600
       accuweather
       --sensors /sensors.csv
@@ -36,7 +36,7 @@ services:
       python -m forecast
       --download-path /storage
       --s3-uri ${S3_URI_VAISALA}
-      --process-num 64
+      --process-num 16
       --download-period 600
       vaisala
       --sensors /sensors.csv
@@ -57,6 +57,7 @@ services:
       --download-path /storage
       --s3-uri ${S3_URI_RAINVIEWER}
       --process-num 8
+      --chunk-size 16
       --download-period 600
       rainviewer
       --token ${RAINVIEWER_TOKEN}
@@ -76,7 +77,8 @@ services:
       python -m forecast
       --download-path /storage
       --s3-uri ${S3_URI_RAINBOW}
-      --process-num 64
+      --process-num 8
+      --chunk-size 15
       --download-period 600
       rainbow
       --sensors /sensors.csv
@@ -96,7 +98,7 @@ services:
       python -m forecast
       --download-path /storage
       --s3-uri ${S3_URI_WEATHERCOMPANY}
-      --process-num 64
+      --process-num 16
       --download-period 600
       weathercompany
       --sensors /sensors.csv
@@ -119,7 +121,7 @@ services:
       --sensors /sensors.csv
       --download-path /storage
       --s3-uri ${S3_URI_TOMORROW}
-      --process-num 64
+      --process-num 16
       --download-period 600
       tomorrowio
       --forecast-type 6hours

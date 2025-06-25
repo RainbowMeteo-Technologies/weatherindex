@@ -4,14 +4,13 @@ import datetime
 import json
 import os
 
-from concurrent.futures import ProcessPoolExecutor
-from forecast.client.base import ClientBase
-from forecast.sensor import Sensor
-from itertools import product
-from rich.console import Console
-from tqdm import tqdm
-from typing_extensions import override  # for python <3.12
+from forecast.providers.provider import BaseParallelExecutionProvider
+from forecast.utils.req_interface import RequestInterface
 
+from itertools import product
+
+from rich.console import Console
+from typing_extensions import override  # for python <3.12
 
 console = Console()
 
@@ -73,12 +72,14 @@ def _download_tiles_batch(jobs: list[tuple[str, str]]) -> list[bool]:
     return asyncio.run(download_batch())
 
 
-class RainViewer(ClientBase):
+class RainViewer(BaseParallelExecutionProvider, RequestInterface):
     TILE_SIZE = 256
     METADATA_RETRY_DELAY = 15
 
-    def __init__(self, token: str, zoom: int):
-        super().__init__()
+    def __init__(self, token: str, zoom: int, chunk_size: int | None = None, *args, **kwargs):
+        chunk_size = chunk_size if chunk_size is not None else BATCH_SIZE
+
+        super().__init__(chunk_size=chunk_size, *args, **kwargs)
         self.token = token
         self.zoom = zoom
 
@@ -93,12 +94,10 @@ class RainViewer(ClientBase):
 
         return None
 
-    # @override
-    async def get_forecast(self,
-                           download_path: str,
-                           process_num: int | None = None,
-                           chunk_size: int | None = None):
-        snapshot_timestamp = int(os.path.basename(download_path))
+    @override
+    async def fetch_job(self, timestamp: int):
+        snapshot_timestamp = timestamp
+        download_path = os.path.join(self._download_path, str(timestamp))
 
         snapshot_available = False
         metadata = None
@@ -148,9 +147,7 @@ class RainViewer(ClientBase):
         console.log(f"Downloading {len(jobs)} tiles")
 
         results = await self.execute_with_batches(args=jobs,
-                                                  chunk_func=_download_tiles_batch,
-                                                  chunk_size=BATCH_SIZE,
-                                                  process_num=process_num)
+                                                  chunk_func=_download_tiles_batch)
 
         # failed result could be either False or exception
         valid_results = sum([1 for result in results if result is True])

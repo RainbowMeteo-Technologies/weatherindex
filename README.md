@@ -170,3 +170,8 @@ The results are written to the path given in `--output-csv`. Each record contain
 | `tn` | True Negative - precip `not` observed and `not` forecasted. |
 | `fn` | False Negative - precip observed but `not` forecasted. |
 
+### Custom Provider Integration
+
+For custom provider integration you might want to take a look at:
+- [Custom forecast provider data collecting integration guide](docs/integration/forecast.md)
+- [Custom forecast provider metrics integration guide](docs/integration/metrics.md)

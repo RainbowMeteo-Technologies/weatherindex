@@ -13,7 +13,7 @@ from metrics.utils.precipitation import PrecipitationType
 
 OutputRowType = typing.List[typing.Tuple[str, float, float, int, float, float, int]]
 
-PROB_THRESHOLD = 0.7
+PROB_THRESHOLD = float(os.getenv("WEATHERINDEX_PARSE_PROB_THRESHOLD", 0.6))
 
 console = Console()
 

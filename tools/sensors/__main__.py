@@ -46,7 +46,7 @@ if __name__ == "__main__":
     subparser = parser.add_subparsers(dest="provider", help="Available intergrations")
 
     # METAR
-    metar_parser = subparser.add_parser("metar", help="Download obseravtions from metar")
+    metar_parser = subparser.add_parser("metar", help="Download observations from metar")
     metar_parser.set_defaults(func=_create_metar)
 
     args = parser.parse_args()

@@ -1,18 +1,19 @@
 import json
 
-from forecast.client.base import SensorClientBase
-from forecast.sensor import Sensor
+from forecast.providers.provider import BaseForecastInPointProvider
+from forecast.utils.req_interface import RequestInterface
+
 from typing_extensions import override  # for python <3.12
 
 
-class OpenWeather(SensorClientBase):
+class OpenWeather(BaseForecastInPointProvider, RequestInterface):
 
-    def __init__(self, token: str, sensors: list[Sensor]):
-        super().__init__(sensors)
+    def __init__(self, token: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.token = token
 
     @override
-    async def _get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
         # https://openweathermap.org/api/one-call-3#how
         url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={self.token}"
 

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shutil
 
 from metrics.utils.time import format_time
 from rich.console import Console
@@ -39,6 +40,20 @@ class Session:
         self._tables_folder = tables_folder or os.path.join(self._path, TABLES_FOLDER)
         self._sensors_folder = sensors_folder or os.path.join(self._path, SENSORS_FOLDER)
         self._metrics_folder = metrics_folder or os.path.join(self._path, METRICS_FOLDER)
+
+    @staticmethod
+    def create(start_time: int, end_time: int, forecast_range: int, session_path: str, session_clear: bool):
+        if session_clear and os.path.isdir(session_path):
+            with console.status(f"Clear previous session `{session_path}`..."):
+                shutil.rmtree(session_path, ignore_errors=True)
+            console.log(f"Session {session_path} was cleared")
+
+            os.makedirs(session_path, exist_ok=False)
+
+        return Session(session_path=session_path,
+                       start_time=start_time,
+                       end_time=end_time,
+                       forecast_range=forecast_range)
 
     @property
     def session_name(self) -> str:

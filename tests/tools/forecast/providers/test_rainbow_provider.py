@@ -1,8 +1,9 @@
 import pytest
 
-from forecast.client.base import SensorClientBase
-from forecast.client.rainbow import Rainbow
+from forecast.providers.provider import BaseProvider
+from forecast.providers.rainbow import Rainbow
 from forecast.sensor import Sensor
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -14,7 +15,10 @@ def test_sensors():
 
 
 def test_rainbow_smoke(test_sensors):
-    client = Rainbow(sensors=test_sensors, token="test_token")
+    client = Rainbow(sensors=test_sensors,
+                     token="test_token",
+                     download_path="test_download_path",
+                     publisher=MagicMock())
     assert isinstance(client, Rainbow)
-    assert isinstance(client, SensorClientBase)
+    assert isinstance(client, BaseProvider)
     assert len(client.sensors) == 2
