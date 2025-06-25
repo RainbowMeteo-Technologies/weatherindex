@@ -1,6 +1,6 @@
 # Forecast Integration Guide
 
-This guide provides a general overview of the required implementation steps to start data collecting of custom forecast provider data. This is an essential first step, as further [metrics](docs/integration/METRICS.md) relies on data stored using this system.
+This guide provides a general overview of the required implementation steps to start data collecting of custom forecast provider data. This is an essential first step, as further [metrics](docs/integration/metrics.md) relies on data stored using this system.
 
 ## Overview
 

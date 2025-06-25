@@ -1,6 +1,6 @@
 # Metrics Integration Guide
 
-This guide is for those who considers using this methodology to evaluate forecast quality of any forecast provider originally not supported in `weatherindex` repository. This topic covers only the [metrics](metrics/) scope, for instruction on how to start collecting your custom provider data refer to [FORECAST.md](docs/integration/FORECAST.md).
+This guide is for those who considers using this methodology to evaluate forecast quality of any forecast provider originally not supported in `weatherindex` repository. This topic covers only the [metrics](metrics/) scope, for instruction on how to start collecting your custom provider data refer to [forecast.md](docs/integration/forecast.md).
 
 ## Overview
 
