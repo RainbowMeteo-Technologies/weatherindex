@@ -1,8 +1,7 @@
 import json
 
 from forecast.providers.provider import BaseForecastInPointProvider
-from forecast.utils.req_interface import RequestInterface
-
+from forecast.utils.req_interface import RequestInterface, Response
 from typing_extensions import override  # for python <3.12
 
 
@@ -15,7 +14,7 @@ class TomorrowIo(BaseForecastInPointProvider, RequestInterface):
         self.token = token
         self.forecast_type = forecast_type
 
-    async def _request_1hour_forecast(self, lon: float, lat: float) -> bytes | None:
+    async def _request_1hour_forecast(self, lon: float, lat: float) -> Response:
         # https://docs.tomorrow.io/reference/weather-forecast
         url = f"https://api.tomorrow.io/v4/weather/forecast?timesteps=1m&location={lat},{lon}&apikey={self.token}"
 
@@ -25,7 +24,7 @@ class TomorrowIo(BaseForecastInPointProvider, RequestInterface):
 
         return await self._native_get(url=url, headers=headers)
 
-    async def _request_6hours_forecast(self, lon: float, lat: float) -> bytes | None:
+    async def _request_6hours_forecast(self, lon: float, lat: float) -> Response:
         # https://docs.tomorrow.io/reference/post-timelines
         url = f"https://api.tomorrow.io/v4/timelines?apikey={self.token}"
 
@@ -46,22 +45,20 @@ class TomorrowIo(BaseForecastInPointProvider, RequestInterface):
         return await self._native_post(url, headers=headers, body=payload)
 
     @override
-    async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
-        data = None
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         if self.forecast_type == "hour":
-            data = await self._request_1hour_forecast(lon=lon, lat=lat)
+            resp = await self._request_1hour_forecast(lon=lon, lat=lat)
         elif self.forecast_type == "6hours":
-            data = await self._request_6hours_forecast(lon=lon, lat=lat)
+            resp = await self._request_6hours_forecast(lon=lon, lat=lat)
+        else:
+            resp = Response()
 
-        if data is not None:
-            payload = json.loads(data)
-
-            return json.dumps({
+        if resp.ok:
+            resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat
                 },
-                "payload": payload
+                "payload": json.loads(resp.payload)
             })
-
-        return None
+        return resp

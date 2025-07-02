@@ -1,6 +1,5 @@
 from forecast.providers.provider import BaseForecastInPointProvider
-from forecast.utils.req_interface import RequestInterface
-
+from forecast.utils.req_interface import RequestInterface, Response
 from typing_extensions import override  # for python <3.12
 
 
@@ -10,7 +9,7 @@ class MyRadar(BaseForecastInPointProvider, RequestInterface):
         self.subscription_key = sub_key
 
     @override
-    async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         # https://myradar.developer.azure-api.net/api-details#api=forecast-api&operation=get-forecast-latitude-longitude
         url = f"https://api.myradar.dev/forecast/{lat},{lon}?extend=hourly&units=si&lang=en"
         headers = {

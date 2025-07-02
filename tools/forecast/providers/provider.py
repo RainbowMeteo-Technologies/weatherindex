@@ -1,19 +1,21 @@
 import asyncio
 import os
+import pandas as pd
 import shutil
 
 from abc import abstractmethod
 from concurrent.futures import ProcessPoolExecutor
-
 from forecast.publishers.publisher import Publisher
-from forecast.utils.time import Timestamp, time_to_next_run
 from forecast.sensor import Sensor
+from forecast.utils.constants import FETCHING_REPORT_NAME
+from forecast.utils.req_interface import Response
+from forecast.utils.time import Timestamp, time_to_next_run
 from functools import partial
 from itertools import islice
+from rich.console import Console
 from typing import Awaitable, Callable, Generator, TypeVar
 from typing_extensions import override  # for python <3.12
 
-from rich.console import Console
 
 console = Console()
 
@@ -101,6 +103,23 @@ class BaseProvider:
         """
         pass
 
+    def save_fetching_report(self,
+                             folder: str,
+                             targets: list[str],
+                             coords: list[str],
+                             statuses: list[bool],
+                             codes: list[int]):
+        report = pd.DataFrame({"provider": [self.provider_name] * len(targets),
+                               "target": targets,
+                               "coords": coords,
+                               "status": statuses,
+                               "code": codes})
+        report.to_csv(os.path.join(folder, FETCHING_REPORT_NAME), index=False)
+
+    @property
+    def provider_name(self):
+        return self.__class__.__name__
+
 
 def batched(iterable: list[T], n: int) -> Generator[list[T], None, None]:
     """Batch data into lists of length n. The last batch may be shorter.
@@ -147,26 +166,29 @@ def _process_sensor_chunk(sensors: list[Sensor],
                           download_path: str,
                           get_json: Callable[[float, float], Awaitable[str | bytes | None]]) -> list[object]:
 
-    async def _process_sensor(sensor: Sensor) -> None:
-        try:
-            forecast = await get_json(sensor.lon, sensor.lat)
-            if forecast is not None:
+    async def _process_sensor(sensor: Sensor) -> Response:
+        resp = await get_json(sensor.lon, sensor.lat)
+        if resp.ok:
+            try:
                 file_mode = None
-                if isinstance(forecast, str):
+                if isinstance(resp.payload, str):
                     file_mode = "w"
-                elif isinstance(forecast, bytes):
+                elif isinstance(resp.payload, bytes):
                     file_mode = "wb"
                 else:
-                    raise TypeError(f"Expected str or bytes, got {type(forecast).__name__}")
+                    raise TypeError(f"Expected str or bytes, got {type(resp.payload).__name__}")
 
                 with open(os.path.join(download_path, f"{sensor.id}.json"), file_mode) as f:
-                    f.write(forecast)
-            else:
-                console.log(f"Wasn't able to get data for {sensor.id}")
-        except Exception as e:
-            console.print_exception()
+                    f.write(resp.payload)
+            except Exception:
+                resp.set_failed()
+                return resp
 
-    async def _process(sensors: list[Sensor]) -> list[object]:
+        else:
+            console.log(f"Wasn't able to get data for {sensor.id}")
+        return resp
+
+    async def _process(sensors: list[Sensor]) -> list[Response]:
         jobs = [_process_sensor(sensor) for sensor in sensors]
         return await asyncio.gather(*jobs, return_exceptions=True)
 
@@ -201,4 +223,10 @@ class BaseForecastInPointProvider(BaseParallelExecutionProvider):
                      download_path=snapshot_path,
                      get_json=self.get_json_forecast_in_point)
 
-        await self.execute_with_batches(self.sensors, op)
+        responses = await self.execute_with_batches(self.sensors, op)
+
+        self.save_fetching_report(folder=snapshot_path,
+                                  targets=[sensor.id for sensor in self.sensors],
+                                  coords=[f"lat:{sensor.lat} lon:{sensor.lon}" for sensor in self.sensors],
+                                  statuses=[resp.ok for resp in responses],
+                                  codes=[resp.status for resp in responses])

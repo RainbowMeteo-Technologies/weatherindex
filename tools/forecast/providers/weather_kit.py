@@ -3,10 +3,8 @@ import jwt
 
 from dataclasses import dataclass
 from datetime import datetime
-
 from forecast.providers.provider import BaseForecastInPointProvider
-from forecast.utils.req_interface import RequestInterface
-
+from forecast.utils.req_interface import RequestInterface, Response
 from typing import BinaryIO
 from typing_extensions import override  # for python <3.12
 
@@ -90,7 +88,7 @@ class WeatherKit(BaseForecastInPointProvider, RequestInterface):
             self.token = token.token
 
     @override
-    async def get_json_forecast_in_point(self, lon: float, lat: float) -> str | bytes | None:
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         # https://developer.apple.com/documentation/weatherkitrestapi/get_api_v1_weather_language_latitude_longitude
         url = f"https://weatherkit.apple.com/api/v1/weather/en/{lat}/{lon}/"
         headers = {

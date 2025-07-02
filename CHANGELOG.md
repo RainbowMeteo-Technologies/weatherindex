@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.2`
+- Add fetching reports to the forecast downloading tool
+
 ## `0.2.1`
 - Use asynchronous forecast data downloading
 - Fix requirements.dev.txt paths
