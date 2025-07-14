@@ -1,6 +1,6 @@
 [![metrics](https://github.com/RainbowMeteo-Technologies/weatherindex/actions/workflows/test.yml/badge.svg)](https://github.com/RainbowMeteo-Technologies/weatherindex/actions/workflows/test.yml)
 
-# Weaherindex
+# Weatherindex
 
 Weatherindex is an **open-source platform** for comparing short-term weather forecasts ("nowcasts") from leading weather data providers.
 

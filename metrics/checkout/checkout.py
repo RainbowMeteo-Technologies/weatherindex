@@ -71,109 +71,6 @@ def _build_s3_download_list(snaphots: typing.List[int], s3_uri: str, rule: str) 
     return list(map(lambda item: os.path.join(s3_uri, rule(item)), snaphots))
 
 
-def _download_file_impl(args):
-    uri, file_path = args
-    s3_client = S3Client()
-    if not s3_client.download_file(s3_uri=uri, file_path=file_path):
-        console.log(f"\n[red]Error:[/red] Wasn't able to download {uri}")
-
-
-def _download_data(s3_uri: str,
-                   download_path: str,
-                   start_time: int,
-                   end_time: int,
-                   period: int,
-                   rule: str):
-    """Downloads timestamps of sensors data from s3.
-
-    Parameters
-    ----------
-    data_uri : str
-        S3 URI of folder with data on s3
-    download_path : str
-        Path where to download data
-    start_time : int
-        Start timestamp of download period
-    end_time : int
-        End timestamp of download period
-    period : int
-        Period of stored data
-    rule : str
-        Rule for creating filename from timestamp
-    """
-    sensors_timestamps = _build_snapshot_list(
-        start_time=start_time,
-        end_time=end_time,
-        period=period)
-
-    download_uri_list = _build_s3_download_list(
-        snaphots=sensors_timestamps,
-        s3_uri=s3_uri,
-        rule=rule)
-
-    download_jobs = []
-    for uri, timestamp in zip(download_uri_list, sensors_timestamps):
-        _, file_ext = os.path.splitext(uri)
-        file_path = os.path.join(download_path, f"{timestamp}{file_ext}")
-        download_jobs.append((uri, file_path))
-
-    tm = TimeMeasure()
-    console.log(f"Download data from {s3_uri}...")
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(_download_file_impl, download_jobs)
-    console.log(f"Download from {s3_uri} completed in {tm():.2f} seconds...")
-
-
-def checkout_forecasts(session: Session, forecasts_sources: typing.List[DataSource]):
-    def _download_forecast(vendor: str, s3_uri: str, data_folder: str, rule: str, period: int = 600):
-        time = format_time(session.start_time - session.forecast_range)
-        console.log(f"[yellow]Download `{vendor}` forecast[/yellow]: [{time}, {format_time(session.end_time)}]")
-        os.makedirs(data_folder, exist_ok=True)
-
-        _download_data(s3_uri=s3_uri,
-                       download_path=data_folder,
-                       start_time=session.start_time - session.forecast_range,
-                       end_time=session.end_time,
-                       period=period,
-                       rule=rule)
-
-    os.makedirs(session.data_folder, exist_ok=True)
-    for source in forecasts_sources:
-        if source.s3_uri is not None:
-            _download_forecast(vendor=source.vendor,
-                               s3_uri=source.s3_uri,
-                               data_folder=source.data_folder,
-                               period=source.period,
-                               rule=source.filename_rule)
-
-
-def checkout_sensors(session: Session, observations_sources: typing.List[DataSource]):
-    def _download_sensors(vendor: str,
-                          s3_uri: str,
-                          data_folder: str,
-                          rule: str,
-                          period: int = 600):
-        time = format_time(session.start_time - AGGREGATION_PERIOD)
-        console.log(f"[yellow]Download `{vendor}` sensors data[/yellow]: [{time}, {format_time(session.end_time)}]")
-        os.makedirs(data_folder, exist_ok=True)
-
-        _download_data(s3_uri=s3_uri,
-                       download_path=data_folder,
-                       start_time=session.start_time - AGGREGATION_PERIOD,
-                       end_time=session.end_time,
-                       period=period,
-                       rule=rule)
-
-    os.makedirs(session.data_folder, exist_ok=True)
-    for source in observations_sources:
-        if source.s3_uri is not None:
-            _download_sensors(vendor=source.vendor,
-                              s3_uri=source.s3_uri,
-                              data_folder=source.data_folder,
-                              period=source.period,
-                              rule=source.filename_rule)
-
-
 class CheckoutExecutor:
     def __init__(self,
                  session: Session,
@@ -183,6 +80,105 @@ class CheckoutExecutor:
 
         self.observations_sources = self.observation_sources_list(observations_info)
         self.forecasts_sources = self.forecast_sources_list(forecasts_info)
+
+    def _download_file_impl(self, args):
+        uri, file_path = args
+        s3_client = S3Client()
+        if not s3_client.download_file(s3_uri=uri, file_path=file_path):
+            console.log(f"\n[red]Error:[/red] Wasn't able to download {uri}")
+
+    def _download_data(self, s3_uri: str,
+                       download_path: str,
+                       start_time: int,
+                       end_time: int,
+                       period: int,
+                       rule: str):
+        """Downloads timestamps of sensors data from s3.
+
+        Parameters
+        ----------
+        s3_uri : str
+            S3 URI of folder with data on s3
+        download_path : str
+            Path where to download data
+        start_time : int
+            Start timestamp of download period
+        end_time : int
+            End timestamp of download period
+        period : int
+            Period of stored data
+        rule : str
+            Rule for creating filename from timestamp
+        """
+        sensors_timestamps = _build_snapshot_list(
+            start_time=start_time,
+            end_time=end_time,
+            period=period)
+
+        download_uri_list = _build_s3_download_list(
+            snaphots=sensors_timestamps,
+            s3_uri=s3_uri,
+            rule=rule)
+
+        download_jobs = []
+        for uri, timestamp in zip(download_uri_list, sensors_timestamps):
+            _, file_ext = os.path.splitext(uri)
+            file_path = os.path.join(download_path, f"{timestamp}{file_ext}")
+            download_jobs.append((uri, file_path))
+
+        tm = TimeMeasure()
+        console.log(f"Download data from {s3_uri}...")
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(self._download_file_impl, download_jobs)
+        console.log(f"Download from {s3_uri} completed in {tm():.2f} seconds...")
+
+    def _checkout_forecasts(self, session: Session, forecasts_sources: typing.List[DataSource]):
+        def _download_forecast(vendor: str, s3_uri: str, data_folder: str, rule: str, period: int = 600):
+            time = format_time(session.start_time - session.forecast_range)
+            console.log(f"[yellow]Download `{vendor}` forecast[/yellow]: [{time}, {format_time(session.end_time)}]")
+            os.makedirs(data_folder, exist_ok=True)
+
+            self._download_data(s3_uri=s3_uri,
+                                download_path=data_folder,
+                                start_time=session.start_time - session.forecast_range,
+                                end_time=session.end_time,
+                                period=period,
+                                rule=rule)
+
+        os.makedirs(session.data_folder, exist_ok=True)
+        for source in forecasts_sources:
+            if source.s3_uri is not None:
+                _download_forecast(vendor=source.vendor,
+                                   s3_uri=source.s3_uri,
+                                   data_folder=source.data_folder,
+                                   period=source.period,
+                                   rule=source.filename_rule)
+
+    def _checkout_sensors(self, session: Session, observations_sources: typing.List[DataSource]):
+        def _download_sensors(vendor: str,
+                              s3_uri: str,
+                              data_folder: str,
+                              rule: str,
+                              period: int = 600):
+            time = format_time(session.start_time - AGGREGATION_PERIOD)
+            console.log(f"[yellow]Download `{vendor}` sensors data[/yellow]: [{time}, {format_time(session.end_time)}]")
+            os.makedirs(data_folder, exist_ok=True)
+
+            self._download_data(s3_uri=s3_uri,
+                                download_path=data_folder,
+                                start_time=session.start_time - AGGREGATION_PERIOD,
+                                end_time=session.end_time,
+                                period=period,
+                                rule=rule)
+
+        os.makedirs(session.data_folder, exist_ok=True)
+        for source in observations_sources:
+            if source.s3_uri is not None:
+                _download_sensors(vendor=source.vendor,
+                                  s3_uri=source.s3_uri,
+                                  data_folder=source.data_folder,
+                                  period=source.period,
+                                  rule=source.filename_rule)
 
     def forecast_sources_list(self, forecasts_info: ForecastSourcesInfo) -> typing.List["DataSource"]:
         return [
@@ -223,10 +219,10 @@ class CheckoutExecutor:
         deadline_timestamp = deadline_timestamp - (deadline_timestamp % 3600)
         self._session.clear_outdated(deadline_timestamp=deadline_timestamp)
 
-        checkout_forecasts(session=self._session,
-                           forecasts_sources=self.forecasts_sources)
-        checkout_sensors(session=self._session,
-                         observations_sources=self.observations_sources)
+        self._checkout_forecasts(session=self._session,
+                                 forecasts_sources=self.forecasts_sources)
+        self._checkout_sensors(session=self._session,
+                               observations_sources=self.observations_sources)
 
         self._session.save_meta()
 
