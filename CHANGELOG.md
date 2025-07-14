@@ -2,6 +2,7 @@
 
 ## `0.2.2`
 - Add fetching reports to the forecast downloading tool
+- Add support for different download implementations in CheckoutExecutor 
 
 ## `0.2.1`
 - Use asynchronous forecast data downloading
