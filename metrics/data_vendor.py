@@ -15,3 +15,4 @@ class DataVendor(BaseDataVendor, Enum):
     WeatherCompany = "weathercompany"
 
     Metar = "metar"
+    Austria = "austria"

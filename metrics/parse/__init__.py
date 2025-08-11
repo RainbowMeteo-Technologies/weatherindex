@@ -6,6 +6,7 @@ from metrics.parse.forecast.tomorrow_io import TomorrowIoParser
 from metrics.parse.forecast.vaisala import VaisalaParser
 from metrics.parse.forecast.weather_company import WeatherCompanyParser
 from metrics.parse.forecast.weather_kit import WeatherKitParser
+from metrics.parse.observation.austria import AustriaParser
 from metrics.parse.observation.metar import MetarParser
 
 PROVIDERS_PARSERS = {
@@ -17,4 +18,5 @@ PROVIDERS_PARSERS = {
     DataVendor.WeatherCompany.value: WeatherCompanyParser,
 
     DataVendor.Metar.value: MetarParser,
+    DataVendor.Austria.value: AustriaParser,
 }
