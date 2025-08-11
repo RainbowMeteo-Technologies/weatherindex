@@ -143,7 +143,11 @@ class RainViewer(BaseParallelExecutionProvider, RequestInterface):
             for frame_info in available_frames:
                 delta_time = (frame_info["time"] - snapshot_timestamp) // 60  # minutes
 
-                map_tile_url = f"{metadata['host']}{frame_info['path']}/{RainViewer.TILE_SIZE}/{self.zoom}/{tile_x}/{tile_y}/0/0_0.png"
+                map_tile_url = f"{
+                    metadata['host']}{
+                    frame_info['path']}/{
+                    RainViewer.TILE_SIZE}/{
+                    self.zoom}/{tile_x}/{tile_y}/0/0_0.png"
                 map_tile_path = os.path.join(download_path, "_map", f"t{str(delta_time)}", tile_rel_path)
 
                 jobs.append((map_tile_url, map_tile_path))

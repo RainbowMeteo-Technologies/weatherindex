@@ -38,7 +38,7 @@ def _convert_precipitation_to_mm(precip_value: float, unit: str = "mm") -> float
 
 def _parse_timestamp(date_time: str) -> int:
     """Parses string representation of date time into utc timestamp
-    
+
     This function ensures that the original timestamp is treated as UTC,
     matching the metar parser's behavior.
 
@@ -69,13 +69,13 @@ def _parse_timestamp(date_time: str) -> int:
                 date_time_obj = dateutil.parser.isoparse(date_time)
             except ValueError:
                 date_time_obj = dateutil.parser.parse(date_time)
-            
+
             # If no timezone info, assume UTC (matching metar behavior)
             if date_time_obj.tzinfo is None:
                 date_time_obj = date_time_obj.replace(tzinfo=datetime.timezone.utc)
-        
+
         return int(date_time_obj.timestamp())
-        
+
     except Exception as e:
         # Fallback: try to parse and assume UTC if no timezone info
         try:
@@ -90,13 +90,13 @@ def _parse_timestamp(date_time: str) -> int:
 class AustriaParser(BaseParser):
     """
     Parser for Austria Geosphere API-based observation service.
-    
+
     This parser handles GeoJSON data from the Austria weather API and extracts
     precipitation observations for various locations, matching the metar format.
-    
+
     EXPECTED JSON FORMAT:
     The provider returns JSON data in this format:
-    
+
     {
         "timestamp": 1234567890,
         "observations": [
@@ -111,14 +111,14 @@ class AustriaParser(BaseParser):
             ...
         ]
     }
-    
+
     REQUIRED FIELDS:
     - timestamp: ISO format or standard datetime string
     - id: Unique identifier for the location/station
     - lat: Latitude coordinate
     - lon: Longitude coordinate
     - precipitation: Precipitation value
-    
+
     OPTIONAL FIELDS:
     - unit: Unit of precipitation (defaults to "mm")
     """
@@ -126,7 +126,7 @@ class AustriaParser(BaseParser):
     def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> list:
         """
         Parse the JSON data from the Austria API response.
-        
+
         Parameters
         ----------
         timestamp : int
@@ -135,7 +135,7 @@ class AustriaParser(BaseParser):
             Name of the file being parsed
         data : bytes
             Raw JSON data from the Austria API response
-            
+
         Returns
         -------
         list
@@ -143,14 +143,14 @@ class AustriaParser(BaseParser):
             [sensor_id, lon, lat, timestamp, precip_rate, precip_type, px, py, tile_x, tile_y]
         """
         rows = []
-        
+
         try:
             # Parse JSON data
             json_data = json.loads(data.decode("utf-8"))
-            
+
             # Extract observations from the JSON data
             observations = self._extract_observations(json_data)
-            
+
             for obs in observations:
                 # Extract required fields
                 sensor_id = f"austria_{obs["id"]}"  # Prefix with service name
@@ -158,54 +158,54 @@ class AustriaParser(BaseParser):
                 lon = obs["lon"]
                 obs_timestamp = _parse_timestamp(obs["timestamp"])
                 precip_rate = _convert_precipitation_to_mm(obs["precipitation"], obs.get("unit", "mm"))
-                
+
                 # Skip null/missing precipitation data, but include 0.0 (no rain)
                 if precip_rate is None:
                     continue
-                
+
                 # Convert coordinates to tile pixels
                 pixel = coord_to_tile_pixel(coord=Coordinate(lon=lon, lat=lat),
-                                          zoom_level=ZOOM_LEVEL,
-                                          tile_size=TILE_SIZE)
-                
+                                            zoom_level=ZOOM_LEVEL,
+                                            tile_size=TILE_SIZE)
+
                 # Add row in the required format (matching metar exactly)
                 rows.append((
-                    sensor_id, lon, lat, obs_timestamp, precip_rate, 
+                    sensor_id, lon, lat, obs_timestamp, precip_rate,
                     PrecipitationType.RAIN.value,  # Austria provides rainfall data
                     pixel.px, pixel.py, pixel.tile_x, pixel.tile_y
                 ))
-                
+
         except Exception as e:
             # Log parsing errors but don't fail completely
             print(f"Error parsing {file_name}: {e}")
-            
+
         return rows
 
     def _extract_observations(self, json_data: dict) -> list:
         """
         Extract observations from the Austria API JSON data structure.
-        
+
         This method handles the specific format returned by the Austria Geosphere API
         and extracts the required fields for each observation.
-        
+
         Parameters
         ----------
         json_data : dict
             The parsed JSON data from the API response
-            
+
         Returns
         -------
         list
             List of observation dictionaries, each containing:
             - id: station identifier
             - lat: latitude
-            - lon: longitude  
+            - lon: longitude
             - timestamp: timestamp string
             - precipitation: precipitation value
             - unit: unit of precipitation (optional, defaults to "mm")
         """
         observations = []
-        
+
         # Extract observations array from the processed data
         if "observations" in json_data:
             for obs in json_data["observations"]:
@@ -219,7 +219,7 @@ class AustriaParser(BaseParser):
                         "precipitation": obs["precipitation"],
                         "unit": obs.get("unit", "mm")
                     })
-        
+
         return observations
 
     def _should_parse_file_extension(self, file_extension: str) -> bool:
