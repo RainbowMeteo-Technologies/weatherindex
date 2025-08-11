@@ -33,7 +33,7 @@ def _create_metar(args: argparse.Namespace):
 def _create_austria(args: argparse.Namespace):
     publisher = _create_publisher(args)
     return AustriaProvider(
-        publisher=publisher, 
+        publisher=publisher,
         download_path=args.download_path,
         api_endpoint=args.api_endpoint,
         timeout=args.timeout
@@ -62,11 +62,11 @@ if __name__ == "__main__":
 
     # Austria
     austria_parser = subparser.add_parser("austria", help="Download observations from Austria Geosphere API")
-    austria_parser.add_argument("--api-endpoint", dest="api_endpoint", type=str, 
-                               default="https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
-                               help="Austria Geosphere API endpoint URL")
+    austria_parser.add_argument("--api-endpoint", dest="api_endpoint", type=str,
+                                default="https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
+                                help="Austria Geosphere API endpoint URL")
     austria_parser.add_argument("--timeout", dest="timeout", type=int, default=30,
-                               help="Request timeout in seconds")
+                                help="Request timeout in seconds")
     austria_parser.set_defaults(func=_create_austria)
 
     args = parser.parse_args()

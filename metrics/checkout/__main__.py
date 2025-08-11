@@ -48,8 +48,13 @@ if __name__ == "__main__":
     sensor_group = parser.add_argument_group(title="Sensors")
     sensor_group.add_argument("--s3-uri-metar-data", type=str, dest="s3_uri_metar_data", required=False, default=None,
                               help="S3 uri where to get metar data")
-    sensor_group.add_argument("--s3-uri-austria-data", type=str, dest="s3_uri_austria_data", required=False, default=None,
-                              help="S3 uri where to get Austria data")
+    sensor_group.add_argument(
+        "--s3-uri-austria-data",
+        type=str,
+        dest="s3_uri_austria_data",
+        required=False,
+        default=None,
+        help="S3 uri where to get Austria data")
 
     # data
     s3_group = parser.add_argument_group(title="Data URI")
