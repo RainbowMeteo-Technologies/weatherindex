@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from enum import Enum
+from sensors.providers.austria import AustriaProvider
 from sensors.providers.metar import MetarSource
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
@@ -29,6 +30,16 @@ def _create_metar(args: argparse.Namespace):
     return MetarSource(publisher=publisher, download_path=args.download_path)
 
 
+def _create_austria(args: argparse.Namespace):
+    publisher = _create_publisher(args)
+    return AustriaProvider(
+        publisher=publisher, 
+        download_path=args.download_path,
+        api_endpoint=args.api_endpoint,
+        timeout=args.timeout
+    )
+
+
 async def main(args: argparse.Namespace):
     provider = args.func(args)
     await provider.run()
@@ -48,6 +59,15 @@ if __name__ == "__main__":
     # METAR
     metar_parser = subparser.add_parser("metar", help="Download observations from metar")
     metar_parser.set_defaults(func=_create_metar)
+
+    # Austria
+    austria_parser = subparser.add_parser("austria", help="Download observations from Austria Geosphere API")
+    austria_parser.add_argument("--api-endpoint", dest="api_endpoint", type=str, 
+                               default="https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
+                               help="Austria Geosphere API endpoint URL")
+    austria_parser.add_argument("--timeout", dest="timeout", type=int, default=30,
+                               help="Request timeout in seconds")
+    austria_parser.set_defaults(func=_create_austria)
 
     args = parser.parse_args()
 

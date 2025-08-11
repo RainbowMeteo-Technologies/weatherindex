@@ -1,3 +1,4 @@
+AUSTRIA_PERIOD = 600        # 10 minutes
 METAR_PERIOD = 120          # 2 minutes
 
 RAINVIEWER_PERIOD = 600     # 10 minutes

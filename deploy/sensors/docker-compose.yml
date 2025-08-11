@@ -16,3 +16,20 @@ services:
       --download-path ./download/metar
       --storage-uri ${S3_URI_METAR}
       metar
+
+  austria-downloader:
+    profiles:
+      - austria
+    image: weatherindex/weatherindex:sensors-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/download/austria/:/.download/austria/
+    command: |
+      python -m sensors
+      --download-path ./download/austria
+      --storage-uri ${S3_URI_AUSTRIA}
+      austria
+      --api-endpoint https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min
+      --timeout ${AUSTRIA_TIMEOUT:-30}
