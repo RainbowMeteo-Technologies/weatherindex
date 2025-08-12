@@ -1,5 +1,5 @@
-AUSTRIA_PERIOD = 600        # 10 minutes
 METAR_PERIOD = 120          # 2 minutes
+GEOSPHERE_PERIOD = 600      # 10 minutes
 
 RAINVIEWER_PERIOD = 600     # 10 minutes
 WEATHERKIT_PERIOD = 600     # 10 minutes

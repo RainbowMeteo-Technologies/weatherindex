@@ -44,11 +44,11 @@ class AustriaProvider(BaseProvider):
         timeout : int
             Request timeout in seconds
         """
-        super().__init__("Austria", frequency, delay, **kwargs)
+        super().__init__("GeoSphere", frequency, delay, **kwargs)
         self.api_endpoint = api_endpoint
         self.timeout = timeout
 
-        logging.info(f"Initialized Austria provider with endpoint: {api_endpoint}")
+        logging.info(f"Initialized GeoSphere provider with endpoint: {api_endpoint}")
         logging.info(f"Using {len(self.STATION_IDS)} hardcoded station IDs: {", ".join(self.STATION_IDS)}")
 
     async def fetch_job(self, timestamp: int):
@@ -86,12 +86,12 @@ class AustriaProvider(BaseProvider):
             if data:
                 # Store the raw API response directly without processing
                 await self._store_file(f"{timestamp}.json", json.dumps(data).encode("utf-8"))
-                logging.info(f"Successfully stored raw Austria API data for timestamp {timestamp}")
+                logging.info(f"Successfully stored raw GeoSphere API data for timestamp {timestamp}")
             else:
-                logging.error(f"Failed to fetch data from Austria API for timestamp {timestamp}")
+                logging.error(f"Failed to fetch data from GeoSphere API for timestamp {timestamp}")
 
         except Exception as e:
-            logging.error(f"Error fetching Austria data for timestamp {timestamp}: {e}")
+            logging.error(f"Error fetching GeoSphere data for timestamp {timestamp}: {e}")
 
     def _construct_api_url(self, timestamp: int) -> str:
         """
@@ -170,14 +170,14 @@ class AustriaProvider(BaseProvider):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        logging.info(f"Successfully fetched data from Austria API: {url}")
+                        logging.info(f"Successfully fetched data from GeoSphere API: {url}")
                         return data
                     else:
-                        logging.error(f"Austria API returned status {response.status}: {url}")
+                        logging.error(f"GeoSphere API returned status {response.status}: {url}")
                         return None
         except aiohttp.ClientError as e:
-            logging.error(f"HTTP client error calling Austria API: {e}")
+            logging.error(f"HTTP client error calling GeoSphere API: {e}")
             return None
         except Exception as e:
-            logging.error(f"Unexpected error calling Austria API: {e}")
+            logging.error(f"Unexpected error calling GeoSphere API: {e}")
             return None

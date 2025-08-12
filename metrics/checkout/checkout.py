@@ -210,9 +210,9 @@ class CheckoutExecutor:
             DataSource.create(vendor="metar", s3_uri=observations_info.s3_uri_metar,
                               data_folder=os.path.join(self._session.data_folder, DataVendor.Metar.value),
                               period=constants.METAR_PERIOD),
-            DataSource.create(vendor="austria", s3_uri=observations_info.s3_uri_austria,
-                              data_folder=os.path.join(self._session.data_folder, DataVendor.Austria.value),
-                              period=constants.AUSTRIA_PERIOD)
+            DataSource.create(vendor="geosphere", s3_uri=observations_info.s3_uri_geosphere,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.GeoSphere.value),
+                              period=constants.GEOSPHERE_PERIOD)
         ]
 
     def run(self):
@@ -264,7 +264,7 @@ def checkout(start_time: int,
                 f"- s3_uri_weathercompany = {forecasts_source.s3_uri_weathercompany}\n"
                 f"Observation sources:\n"
                 f"- s3_uri_metar = {observations_source.s3_uri_metar}\n"
-                f"- s3_uri_austria = {observations_source.s3_uri_austria}")
+                f"- s3_uri_geosphere = {observations_source.s3_uri_geosphere}")
 
     checkout_executor = CheckoutExecutor(session=session,
                                          forecasts_info=forecasts_source,
