@@ -63,10 +63,10 @@ if __name__ == "__main__":
     # GeoSphere
     geosphere_parser = subparser.add_parser("geosphere", help="Download observations from Austria Geosphere API")
     geosphere_parser.add_argument("--api-endpoint", dest="api_endpoint", type=str,
-                                default="https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
-                                help="Austria Geosphere API endpoint URL")
+                                  default="https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
+                                  help="Austria Geosphere API endpoint URL")
     geosphere_parser.add_argument("--timeout", dest="timeout", type=int, default=30,
-                                help="Request timeout in seconds")
+                                  help="Request timeout in seconds")
     geosphere_parser.set_defaults(func=_create_geosphere)
 
     args = parser.parse_args()
