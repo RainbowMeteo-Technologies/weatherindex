@@ -16,7 +16,7 @@ class ForecastSourcesInfo:
 @dataclass
 class ObservationSourcesInfo:
     s3_uri_metar: Optional[str] = None
-    s3_uri_austria: Optional[str] = None
+    s3_uri_geosphere: Optional[str] = None
 
 
 def _timestamp_zip(timestamp: int) -> str:
