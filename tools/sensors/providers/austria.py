@@ -84,13 +84,9 @@ class AustriaProvider(BaseProvider):
             data = await self._make_api_call(url, headers)
 
             if data:
-                # Process and store the data
-                processed_data = self._process_api_response(data, timestamp)
-                if processed_data:
-                    await self._store_file(f"{timestamp}.json", json.dumps(processed_data).encode("utf-8"))
-                    logging.info(f"Successfully stored Austria data for timestamp {timestamp}")
-                else:
-                    logging.warning(f"No valid data extracted from Austria API for timestamp {timestamp}")
+                # Store the raw API response directly without processing
+                await self._store_file(f"{timestamp}.json", json.dumps(data).encode("utf-8"))
+                logging.info(f"Successfully stored raw Austria API data for timestamp {timestamp}")
             else:
                 logging.error(f"Failed to fetch data from Austria API for timestamp {timestamp}")
 
@@ -184,89 +180,4 @@ class AustriaProvider(BaseProvider):
             return None
         except Exception as e:
             logging.error(f"Unexpected error calling Austria API: {e}")
-            return None
-
-    def _process_api_response(self, api_data: dict, timestamp: int):
-        """
-        Process the raw API response to extract and format the required data.
-
-        Parameters
-        ----------
-        api_data : dict
-            Raw API response data from Geosphere API
-        timestamp : int
-            The timestamp this data represents
-
-        Returns
-        -------
-        dict or None
-            Processed data in the expected format, or None if processing failed
-        """
-        try:
-            # Extract timestamps and features from the GeoJSON response
-            timestamps = api_data.get("timestamps", [])
-            features = api_data.get("features", [])
-
-            if not timestamps or not features:
-                logging.warning("No timestamps or features found in API response")
-                return None
-
-            # Process each feature (station) and create observations
-            observations = []
-
-            for feature in features:
-                station_id = feature.get("properties", {}).get("station")
-                if not station_id:
-                    continue
-
-                # Extract coordinates
-                geometry = feature.get("geometry", {})
-                if geometry.get("type") != "Point":
-                    continue
-
-                coordinates = geometry.get("coordinates", [])
-                if len(coordinates) != 2:
-                    continue
-
-                lon, lat = coordinates[0], coordinates[1]
-
-                # Extract precipitation data
-                parameters = feature.get("properties", {}).get("parameters", {})
-                rr_data = parameters.get("RR", {})
-                precip_values = rr_data.get("data", [])
-
-                if not precip_values:
-                    continue
-
-                # Create one observation per timestamp with precipitation data
-                for i, (timestamp_str, precip_value) in enumerate(zip(timestamps, precip_values)):
-                    # Skip null/missing precipitation data, but include 0.0 (no rain)
-                    if precip_value is None:
-                        continue
-
-                    observation = {
-                        "id": station_id,
-                        "lat": lat,
-                        "lon": lon,
-                        "timestamp": timestamp_str,
-                        "precipitation": precip_value,
-                        "unit": "mm"
-                    }
-                    observations.append(observation)
-
-            # Create the final processed data structure
-            processed_data = {
-                "timestamp": timestamp,
-                "observations": observations
-            }
-
-            if observations:
-                logging.info(f"Successfully processed {len(observations)} observations from {len(features)} stations")
-                return processed_data
-            else:
-                logging.warning("No valid observations found in Austria API response")
-                return None
-
-        except Exception as e:
-            logging.error(f"Error processing Austria API response: {e}")
             return None
