@@ -13,8 +13,7 @@ class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
-        url = f"https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}&units=s&language=en-US&format=json&apiKey={
-            self.token}"
+        url = f"https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}&units=s&language=en-US&format=json&apiKey={self.token}"
         resp = await self._native_get(url=url)
         if resp.ok:
             resp.payload = json.dumps({
