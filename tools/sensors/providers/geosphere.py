@@ -14,19 +14,6 @@ class AustriaProvider(BaseProvider):
     the GeoJSON responses to extract precipitation data for multiple stations.
     """
 
-    # Hardcoded list of Austrian weather station IDs
-    STATION_IDS = [
-        "11034",   # WIEN-INNERE STADT
-        "11238",   # GRAZ/STRASSGANG
-        "11060",   # LINZ-STADT
-        "11150",   # SALZBURG-FLUGHAFEN
-        "11320",   # INNSBRUCK/UNIVERSITAET
-        "8989076",  # KLAGENFURT/HTL1-LASTENSTRASSE
-        "11149",   # OBERTAUERN
-        "11311",   # ST.ANTON/ARLBERG
-        "11144",   # ZELL AM SEE
-    ]
-
     def __init__(self, frequency: int = 600, delay: int = 5,
                  api_endpoint: str = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
                  timeout: int = 30, **kwargs):
@@ -47,9 +34,56 @@ class AustriaProvider(BaseProvider):
         super().__init__("GeoSphere", frequency, delay, **kwargs)
         self.api_endpoint = api_endpoint
         self.timeout = timeout
+        self._station_ids: list[str] | None = None
 
         logging.info(f"Initialized GeoSphere provider with endpoint: {api_endpoint}")
-        logging.info(f"Using {len(self.STATION_IDS)} hardcoded station IDs: {", ".join(self.STATION_IDS)}")
+
+    async def _fetch_station_ids(self) -> list[str]:
+        """
+        Fetch the list of active station IDs from the metadata API.
+
+        Returns
+        -------
+        list[str]
+            List of active station IDs
+        """
+        if self._station_ids is not None:
+            return self._station_ids
+
+        try:
+            # Use the same endpoint but with /metadata suffix
+            metadata_url = f"{self.api_endpoint}/metadata"
+            headers = self._get_headers()
+
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+                async with session.get(metadata_url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+
+                        if "stations" in data:
+                            stations = data["stations"]
+                            # Filter for active stations only
+                            active_stations = [station for station in stations if station.get("is_active", False)]
+
+                            # Extract station IDs
+                            station_ids = [station["id"] for station in active_stations]
+
+                            logging.info(f"Successfully fetched {len(station_ids)} active stations from metadata API")
+                            logging.info(f"Total stations in metadata: {len(stations)}")
+
+                            # Cache the station IDs
+                            self._station_ids = station_ids
+                            return station_ids
+                        else:
+                            logging.error("No 'stations' key found in metadata response")
+                            return []
+                    else:
+                        logging.error(f"Metadata API returned status {response.status}")
+                        return []
+
+        except Exception as e:
+            logging.error(f"Error fetching station IDs from metadata API: {e}")
+            return []
 
     async def fetch_job(self, timestamp: int):
         """
@@ -76,8 +110,17 @@ class AustriaProvider(BaseProvider):
             The timestamp of the data to fetch
         """
         try:
+            # Get the list of active station IDs
+            station_ids = await self._fetch_station_ids()
+
+            if not station_ids:
+                logging.error("No active station IDs available, cannot fetch data")
+                return
+
+            logging.info(f"Fetching data for {len(station_ids)} active stations")
+
             # Construct the API URL with timestamp and station IDs
-            url = self._construct_api_url(timestamp)
+            url = self._construct_api_url(timestamp, station_ids)
 
             # Make the API call
             headers = self._get_headers()
@@ -93,14 +136,16 @@ class AustriaProvider(BaseProvider):
         except Exception as e:
             logging.error(f"Error fetching GeoSphere data for timestamp {timestamp}: {e}")
 
-    def _construct_api_url(self, timestamp: int) -> str:
+    def _construct_api_url(self, timestamp: int, station_ids: list[str]) -> str:
         """
-        Construct the API URL for the given timestamp.
+        Construct the API URL for the given timestamp and station IDs.
 
         Parameters
         ----------
         timestamp : int
             The timestamp to fetch data for
+        station_ids : list[str]
+            List of station IDs to fetch data for
 
         Returns
         -------
@@ -120,7 +165,7 @@ class AustriaProvider(BaseProvider):
         end_str = end_time.strftime("%Y-%m-%dT%H:%M")
 
         # Join station IDs with commas
-        station_ids_param = ",".join(self.STATION_IDS)
+        station_ids_param = ",".join(station_ids)
 
         # Construct URL with parameters
         url = (f"{self.api_endpoint}?"
@@ -129,7 +174,7 @@ class AustriaProvider(BaseProvider):
                f"start={start_str}&"
                f"end={end_str}")
 
-        logging.info(f"Constructed API URL: {url}")
+        logging.info(f"Constructed API URL for {len(station_ids)} stations")
         return url
 
     def _get_headers(self) -> dict:
@@ -142,14 +187,14 @@ class AustriaProvider(BaseProvider):
             Headers dictionary
         """
         headers = {
-            "User-Agent": "AustriaWeatherProvider/1.0",
+            "User-Agent": "GeoSphereWeatherProvider/1.0",
             "Accept": "application/json",
             "Content-Type": "application/json"
         }
 
         return headers
 
-    async def _make_api_call(self, url: str, headers: dict):
+    async def _make_api_call(self, url: str, headers: dict) -> dict | None:
         """
         Make the actual API call.
 
@@ -162,7 +207,7 @@ class AustriaProvider(BaseProvider):
 
         Returns
         -------
-        dict or None
+        dict | None
             The API response data or None if failed
         """
         try:
@@ -170,10 +215,10 @@ class AustriaProvider(BaseProvider):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        logging.info(f"Successfully fetched data from GeoSphere API: {url}")
+                        logging.info(f"Successfully fetched data from GeoSphere API")
                         return data
                     else:
-                        logging.error(f"GeoSphere API returned status {response.status}: {url}")
+                        logging.error(f"GeoSphere API returned status {response.status}")
                         return None
         except aiohttp.ClientError as e:
             logging.error(f"HTTP client error calling GeoSphere API: {e}")
