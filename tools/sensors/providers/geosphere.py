@@ -6,7 +6,7 @@ import aiohttp
 from sensors.providers.provider import BaseProvider
 
 
-class AustriaProvider(BaseProvider):
+class GeoSphereProvider(BaseProvider):
     """
     Provider for Austria Geosphere API-based observation service.
 

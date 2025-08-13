@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 from enum import Enum
-from sensors.providers.geosphere import AustriaProvider
+from sensors.providers.geosphere import GeoSphereProvider
 from sensors.providers.metar import MetarSource
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
@@ -32,12 +32,10 @@ def _create_metar(args: argparse.Namespace):
 
 def _create_geosphere(args: argparse.Namespace):
     publisher = _create_publisher(args)
-    return AustriaProvider(
-        publisher=publisher,
-        download_path=args.download_path,
-        api_endpoint=args.api_endpoint,
-        timeout=args.timeout
-    )
+    return GeoSphereProvider(publisher=publisher,
+                             download_path=args.download_path,
+                             api_endpoint=args.api_endpoint,
+                             timeout=args.timeout)
 
 
 async def main(args: argparse.Namespace):
