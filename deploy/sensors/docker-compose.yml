@@ -31,5 +31,3 @@ services:
       --download-path ./download/geosphere
       --storage-uri ${S3_URI_GEOSPHERE}
       geosphere
-      --api-endpoint https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min
-      --timeout ${GEOSPHERE_TIMEOUT:-30}

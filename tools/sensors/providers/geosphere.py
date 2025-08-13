@@ -2,6 +2,7 @@ import json
 import logging
 import datetime as dt
 import aiohttp
+import os
 
 from sensors.providers.provider import BaseProvider
 
@@ -14,9 +15,10 @@ class GeoSphereProvider(BaseProvider):
     the GeoJSON responses to extract precipitation data for multiple stations.
     """
 
-    def __init__(self, frequency: int = 600, delay: int = 5,
-                 api_endpoint: str = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
-                 timeout: int = 30, **kwargs):
+    API_ENDPOINT = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min"
+    DOWNLOAD_TIMEOUT = float(os.getenv("GEOSPHERE_TIMEOUT", 30.0))
+
+    def __init__(self, frequency: int = 600, delay: int = 5, **kwargs):
         """
         Initialize the provider.
 
@@ -26,17 +28,11 @@ class GeoSphereProvider(BaseProvider):
             Frequency of data collection in seconds (default: 600 = 10 minutes)
         delay : int
             Additional delay in seconds
-        api_endpoint : str
-            Base URL for the Austria Geosphere API
-        timeout : int
-            Request timeout in seconds
         """
         super().__init__("GeoSphere", frequency, delay, **kwargs)
-        self.api_endpoint = api_endpoint
-        self.timeout = timeout
-        self._station_ids: list[str] | None = None
+        self._timeout = self.DOWNLOAD_TIMEOUT
 
-        logging.info(f"Initialized GeoSphere provider with endpoint: {api_endpoint}")
+        logging.info(f"Initialized GeoSphere provider with endpoint: {self.API_ENDPOINT}")
 
     async def _fetch_station_ids(self) -> list[str]:
         """
@@ -47,15 +43,12 @@ class GeoSphereProvider(BaseProvider):
         list[str]
             List of active station IDs
         """
-        if self._station_ids is not None:
-            return self._station_ids
-
         try:
             # Use the same endpoint but with /metadata suffix
-            metadata_url = f"{self.api_endpoint}/metadata"
+            metadata_url = f"{self.API_ENDPOINT}/metadata"
             headers = self._get_headers()
 
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
                 async with session.get(metadata_url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -71,8 +64,6 @@ class GeoSphereProvider(BaseProvider):
                             logging.info(f"Successfully fetched {len(station_ids)} active stations from metadata API")
                             logging.info(f"Total stations in metadata: {len(stations)}")
 
-                            # Cache the station IDs
-                            self._station_ids = station_ids
                             return station_ids
                         else:
                             logging.error("No 'stations' key found in metadata response")
@@ -81,7 +72,7 @@ class GeoSphereProvider(BaseProvider):
                         logging.error(f"Metadata API returned status {response.status}")
                         return []
 
-        except Exception as e:
+        except BaseException as e:
             logging.error(f"Error fetching station IDs from metadata API: {e}")
             return []
 
@@ -119,22 +110,88 @@ class GeoSphereProvider(BaseProvider):
 
             logging.info(f"Fetching data for {len(station_ids)} active stations")
 
-            # Construct the API URL with timestamp and station IDs
-            url = self._construct_api_url(timestamp, station_ids)
+            # Split station IDs into chunks of 100 to avoid URL length limits
+            chunk_size = 100
+            station_id_chunks = [station_ids[i:i + chunk_size] for i in range(0, len(station_ids), chunk_size)]
 
-            # Make the API call
-            headers = self._get_headers()
-            data = await self._make_api_call(url, headers)
+            logging.info(f"Split {len(station_ids)} stations into {len(station_id_chunks)} chunks of max {chunk_size}")
 
-            if data:
-                # Store the raw API response directly without processing
-                await self._store_file(f"{timestamp}.json", json.dumps(data).encode("utf-8"))
-                logging.info(f"Successfully stored raw GeoSphere API data for timestamp {timestamp}")
+            # Collect all data from multiple API calls
+            all_data = []
+
+            for i, chunk in enumerate(station_id_chunks):
+                logging.info(f"Processing chunk {i+1}/{len(station_id_chunks)} with {len(chunk)} stations")
+
+                # Construct the API URL with this chunk of station IDs
+                url = self._construct_api_url(timestamp, chunk)
+
+                # Make the API call for this chunk
+                headers = self._get_headers()
+                chunk_data = await self._make_api_call(url, headers)
+
+                if chunk_data:
+                    # Add this chunk's data to our collection
+                    all_data.append(chunk_data)
+                    logging.info(f"Successfully fetched data for chunk {i+1} with {len(chunk)} stations")
+                else:
+                    logging.error(f"Failed to fetch data for chunk {i+1} with {len(chunk)} stations")
+
+            if all_data:
+                # Combine all chunk data into a single response
+                combined_data = self._combine_chunk_data(all_data)
+
+                # Store the combined data
+                await self._store_file(f"{timestamp}.json", json.dumps(combined_data).encode("utf-8"))
+                logging.info(f"Successfully stored combined GeoSphere API data for timestamp {timestamp} from "
+                             f"{len(station_id_chunks)} chunks")
             else:
-                logging.error(f"Failed to fetch data from GeoSphere API for timestamp {timestamp}")
+                logging.error(f"Failed to fetch data from any GeoSphere API chunks for timestamp {timestamp}")
 
-        except Exception as e:
+        except BaseException as e:
             logging.error(f"Error fetching GeoSphere data for timestamp {timestamp}: {e}")
+
+    def _combine_chunk_data(self, chunk_data_list: list[dict]) -> dict:
+        """
+        Combine data from multiple API calls into a single response.
+
+        Parameters
+        ----------
+        chunk_data_list : list[dict]
+            List of API response data from different chunks
+
+        Returns
+        -------
+        dict
+            Combined data with merged timestamps and features
+        """
+        if not chunk_data_list:
+            return {}
+
+        if len(chunk_data_list) == 1:
+            return chunk_data_list[0]
+
+        # Initialize combined data structure
+        combined_data = {"timestamps": [],
+                         "features": []}
+
+        # Collect all unique timestamps
+        all_timestamps = set()
+        for chunk_data in chunk_data_list:
+            if "timestamps" in chunk_data:
+                all_timestamps.update(chunk_data["timestamps"])
+
+        # Sort timestamps chronologically
+        combined_data["timestamps"] = sorted(list(all_timestamps))
+
+        # Collect all features from all chunks
+        for chunk_data in chunk_data_list:
+            if "features" in chunk_data:
+                combined_data["features"].extend(chunk_data["features"])
+
+        logging.info(f"Combined {len(chunk_data_list)} chunks into single response with "
+                     f"{len(combined_data['timestamps'])} timestamps and {len(combined_data['features'])} features")
+
+        return combined_data
 
     def _construct_api_url(self, timestamp: int, station_ids: list[str]) -> str:
         """
@@ -168,7 +225,7 @@ class GeoSphereProvider(BaseProvider):
         station_ids_param = ",".join(station_ids)
 
         # Construct URL with parameters
-        url = (f"{self.api_endpoint}?"
+        url = (f"{self.API_ENDPOINT}?"
                f"parameters=RR&"
                f"station_ids={station_ids_param}&"
                f"start={start_str}&"
@@ -211,7 +268,7 @@ class GeoSphereProvider(BaseProvider):
             The API response data or None if failed
         """
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -223,6 +280,6 @@ class GeoSphereProvider(BaseProvider):
         except aiohttp.ClientError as e:
             logging.error(f"HTTP client error calling GeoSphere API: {e}")
             return None
-        except Exception as e:
+        except BaseException as e:
             logging.error(f"Unexpected error calling GeoSphere API: {e}")
             return None
