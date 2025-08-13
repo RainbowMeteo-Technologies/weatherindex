@@ -19,10 +19,9 @@ class GeoSphereProvider(BaseProvider):
     Documentation: https://dataset.api.hub.geosphere.at/v1/docs/
     """
 
-    API_ENDPOINT = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min"
-    DOWNLOAD_TIMEOUT = float(os.getenv("GEOSPHERE_TIMEOUT", 30.0))
-
-    def __init__(self, frequency: int = 600, delay: int = 5, **kwargs):
+    def __init__(self, frequency: int = 600, delay: int = 5,
+                 api_endpoint: str = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min",
+                 timeout: int = 30, **kwargs):
         """
         Initialize the provider.
 
@@ -32,11 +31,17 @@ class GeoSphereProvider(BaseProvider):
             Frequency of data collection in seconds (default: 600 = 10 minutes)
         delay : int
             Additional delay in seconds
+        api_endpoint : str
+            Base URL for the Austria Geosphere API
+        timeout : int
+            Request timeout in seconds
         """
         super().__init__("GeoSphere", frequency, delay, **kwargs)
-        self._timeout = self.DOWNLOAD_TIMEOUT
+        self.api_endpoint = api_endpoint
+        self.timeout = timeout
+        self._station_ids: list[str] | None = None
 
-        logging.info(f"Initialized GeoSphere provider with endpoint: {self.API_ENDPOINT}")
+        logging.info(f"Initialized GeoSphere provider with endpoint: {api_endpoint}")
 
     async def _fetch_station_ids(self) -> list[str]:
         """
@@ -68,6 +73,8 @@ class GeoSphereProvider(BaseProvider):
                             logging.info(f"Successfully fetched {len(station_ids)} active stations from metadata API")
                             logging.info(f"Total stations in metadata: {len(stations)}")
 
+                            # Cache the station IDs
+                            self._station_ids = station_ids
                             return station_ids
                         else:
                             logging.error("No 'stations' key found in metadata response")
