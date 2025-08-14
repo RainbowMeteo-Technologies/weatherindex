@@ -60,6 +60,10 @@ async def test_fetch_data_success(mock_http_get, mock_publisher, temp_download_p
         download_path=temp_download_path
     )
 
+    # Initialize storage manually for testing (normally done in run() method)
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
+
     timestamp = 1718236800
 
     # Test the fetch_data method
@@ -85,6 +89,10 @@ async def test_fetch_data_http_failure(mock_http_get, mock_publisher, temp_downl
         download_path=temp_download_path
     )
 
+    # Initialize storage manually for testing
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
+
     timestamp = 1718236800
 
     # Test the fetch_data method
@@ -108,6 +116,10 @@ async def test_fetch_data_exception_handling(mock_http_get, mock_publisher, temp
         publisher=mock_publisher,
         download_path=temp_download_path
     )
+
+    # Initialize storage manually for testing
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
 
     timestamp = 1718236800
 
@@ -135,6 +147,10 @@ async def test_fetch_job_integration(mock_http_get, mock_publisher, temp_downloa
         download_path=temp_download_path
     )
 
+    # Initialize storage manually for testing
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
+
     timestamp = 1718236800
 
     # Test the fetch_job method
@@ -158,6 +174,10 @@ async def test_fetch_data_with_large_xml(mock_http_get, mock_publisher, temp_dow
         download_path=temp_download_path
     )
 
+    # Initialize storage manually for testing
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
+
     timestamp = 1718236800
 
     # Test the fetch_data method
@@ -180,6 +200,10 @@ async def test_fetch_data_with_special_characters(mock_http_get, mock_publisher,
         publisher=mock_publisher,
         download_path=temp_download_path
     )
+
+    # Initialize storage manually for testing
+    from sensors.utils.memory_zip import MemoryZip
+    client._storage = MemoryZip()
 
     timestamp = 1718236800
 

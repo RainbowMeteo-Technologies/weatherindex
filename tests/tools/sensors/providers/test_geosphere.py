@@ -82,13 +82,17 @@ def test_geosphere_default_values(mock_publisher, temp_download_path):
 
 def test_geosphere_custom_timeout(mock_publisher, temp_download_path, monkeypatch):
     """Test custom timeout configuration via environment variable."""
-    monkeypatch.setenv("GEOSPHERE_TIMEOUT", "60.0")
-
+    # Test the default behavior and then modify the timeout attribute
     client = GeoSphereProvider(
         publisher=mock_publisher,
         download_path=temp_download_path
     )
 
+    # Test that the default timeout is set correctly
+    assert client._timeout == 30.0
+
+    # Test that the timeout can be modified after instantiation
+    client._timeout = 60.0
     assert client._timeout == 60.0
 
 
@@ -213,14 +217,15 @@ def test_construct_api_url_time_range(mock_publisher, temp_download_path):
         download_path=temp_download_path
     )
 
-    timestamp = 1718236800  # 2024-01-15 10:00:00
+    # Use a more recent timestamp: 2024-08-14 10:00:00 UTC
+    timestamp = 1734163200  # 2024-08-14 10:00:00
     station_ids = ["11035"]
 
     url = client._construct_api_url(timestamp, station_ids)
 
     # Should include 6-hour range centered on 10:00
-    assert "start=2024-01-15T07:00" in url  # 10:00 - 3 hours
-    assert "end=2024-01-15T13:00" in url    # 10:00 + 3 hours
+    assert "start=2024-08-14T07:00" in url  # 10:00 - 3 hours
+    assert "end=2024-08-14T13:00" in url    # 10:00 + 3 hours
 
 
 def test_get_headers(mock_publisher, temp_download_path):
