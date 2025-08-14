@@ -209,8 +209,9 @@ class GeoSphereProvider(BaseProvider):
         str
             The complete API URL
         """
-        # Convert timestamp to datetime for API parameters
-        dt_obj = dt.datetime.fromtimestamp(timestamp)
+        # Convert timestamp to UTC datetime for API parameters
+        # Use utcfromtimestamp to ensure consistent UTC time regardless of system timezone
+        dt_obj = dt.datetime.utcfromtimestamp(timestamp)
 
         # Calculate time range: 6 hours centered around the timestamp
         # This matches the example API call (10:00 to 16:00)

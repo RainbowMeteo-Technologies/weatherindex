@@ -217,15 +217,21 @@ def test_construct_api_url_time_range(mock_publisher, temp_download_path):
         download_path=temp_download_path
     )
 
-    # Use a more recent timestamp: 2024-08-14 10:00:00 UTC
-    timestamp = 1734163200  # 2024-08-14 10:00:00
+    # Use the original timestamp: 1718236800 (should be 2024-01-15 10:00:00 UTC)
+    # Now that we use utcfromtimestamp, this should be consistent across environments
+    timestamp = 1718236800
     station_ids = ["11035"]
 
     url = client._construct_api_url(timestamp, station_ids)
 
-    # Should include 6-hour range centered on 10:00
-    assert "start=2024-08-14T07:00" in url  # 10:00 - 3 hours
-    assert "end=2024-08-14T13:00" in url    # 10:00 + 3 hours
+    # Should include 6-hour range centered on 10:00 UTC
+    assert "start=2024-01-15T07:00" in url  # 10:00 - 3 hours
+    assert "end=2024-01-15T13:00" in url    # 10:00 + 3 hours
+
+    # Also verify the URL structure is correct
+    assert "parameters=RR" in url
+    assert "station_ids=11035" in url
+    assert "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min" in url
 
 
 def test_get_headers(mock_publisher, temp_download_path):
