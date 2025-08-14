@@ -217,9 +217,9 @@ def test_construct_api_url_time_range(mock_publisher, temp_download_path):
         download_path=temp_download_path
     )
 
-    # Use the original timestamp: 1718236800 (should be 2024-01-15 10:00:00 UTC)
-    # Now that we use utcfromtimestamp, this should be consistent across environments
-    timestamp = 1718236800
+    # Use timestamp 1705312800 which represents January 15, 2024 10:00:00 UTC
+    # This should give us a 6-hour range from 07:00 to 13:00
+    timestamp = 1705312800
     station_ids = ["11035"]
 
     url = client._construct_api_url(timestamp, station_ids)
