@@ -110,7 +110,7 @@ async def test_download_station_files_success(
     # Properly mock the async context manager for ClientSession
     mock_session_instance = AsyncMock()
     mock_session.return_value = mock_session_instance
-    
+
     # Mock the get method to return our mock responses
     mock_session_instance.get.side_effect = [
         mock_response,  # Directory listing
@@ -146,7 +146,7 @@ async def test_download_station_files_directory_access_failure(mock_session, tem
     # Properly mock the async context manager for ClientSession
     mock_session_instance = AsyncMock()
     mock_session.return_value = mock_session_instance
-    
+
     # Mock the get method to return error response
     mock_session_instance.get.return_value = mock_response
 
