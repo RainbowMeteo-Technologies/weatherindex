@@ -4,6 +4,7 @@ import logging
 
 from enum import Enum
 from sensors.providers.geosphere import GeoSphereProvider
+from sensors.providers.dwd import DWDProvider
 from sensors.providers.metar import MetarSource
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
@@ -36,6 +37,12 @@ def _create_geosphere(args: argparse.Namespace):
                              download_path=args.download_path)
 
 
+def _create_dwd(args: argparse.Namespace):
+    publisher = _create_publisher(args)
+    return DWDProvider(publisher=publisher,
+                       download_path=args.download_path)
+
+
 async def main(args: argparse.Namespace):
     provider = args.func(args)
     await provider.run()
@@ -59,6 +66,10 @@ if __name__ == "__main__":
     # GeoSphere
     geosphere_parser = subparser.add_parser("geosphere", help="Download observations from Austria Geosphere API")
     geosphere_parser.set_defaults(func=_create_geosphere)
+
+    # DWD
+    dwd_parser = subparser.add_parser("dwd", help="Download observations from Germany DWD open data")
+    dwd_parser.set_defaults(func=_create_dwd)
 
     args = parser.parse_args()
 

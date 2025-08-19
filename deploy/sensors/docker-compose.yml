@@ -31,3 +31,18 @@ services:
       --download-path ./download/geosphere
       --storage-uri ${S3_URI_GEOSPHERE}
       geosphere
+
+  dwd-downloader:
+    profiles:
+      - dwd
+    image: weatherindex/weatherindex:sensors-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/download/dwd/:/.download/dwd/
+    command: |
+      python -m sensors
+      --download-path ./download/dwd
+      --storage-uri ${S3_URI_DWD}
+      dwd
