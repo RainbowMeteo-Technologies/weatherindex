@@ -296,6 +296,9 @@ class GeoSphereProvider(BaseProvider):
                     else:
                         logging.error(f"GeoSphere API returned status {response.status}")
                         return None
+        except asyncio.TimeoutError as e:
+            logging.error(f"Timeout error calling GeoSphere API (timeout: {self._timeout}s): {e}")
+            return None
         except aiohttp.ClientError as e:
             logging.error(f"HTTP client error calling GeoSphere API: {e}")
             return None
