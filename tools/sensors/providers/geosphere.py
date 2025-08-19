@@ -3,6 +3,7 @@ import logging
 import datetime as dt
 import aiohttp
 import os
+import asyncio
 
 from sensors.providers.provider import BaseProvider
 
@@ -116,11 +117,10 @@ class GeoSphereProvider(BaseProvider):
 
             logging.info(f"Split {len(station_ids)} stations into {len(station_id_chunks)} chunks of max {chunk_size}")
 
-            # Collect all data from multiple API calls
-            all_data = []
-
-            for i, chunk in enumerate(station_id_chunks):
-                logging.info(f"Processing chunk {i+1}/{len(station_id_chunks)} with {len(chunk)} stations")
+            # Create a list of async jobs for concurrent execution
+            async def fetch_chunk(chunk_index: int, chunk: list[str]) -> tuple[int, dict | None]:
+                """Fetch data for a single chunk of stations."""
+                logging.info(f"Processing chunk {chunk_index + 1}/{len(station_id_chunks)} with {len(chunk)} stations")
 
                 # Construct the API URL with this chunk of station IDs
                 url = self._construct_api_url(timestamp, chunk)
@@ -130,11 +130,29 @@ class GeoSphereProvider(BaseProvider):
                 chunk_data = await self._make_api_call(url, headers)
 
                 if chunk_data:
-                    # Add this chunk's data to our collection
-                    all_data.append(chunk_data)
-                    logging.info(f"Successfully fetched data for chunk {i+1} with {len(chunk)} stations")
+                    logging.info(f"Successfully fetched data for chunk {chunk_index + 1} with {len(chunk)} stations")
                 else:
-                    logging.error(f"Failed to fetch data for chunk {i+1} with {len(chunk)} stations")
+                    logging.error(f"Failed to fetch data for chunk {chunk_index + 1} with {len(chunk)} stations")
+
+                return chunk_index, chunk_data
+
+            # Create all the async jobs
+            jobs = [fetch_chunk(i, chunk) for i, chunk in enumerate(station_id_chunks)]
+
+            # Execute all jobs concurrently
+            logging.info(f"Executing {len(jobs)} chunk requests concurrently")
+            results = await asyncio.gather(*jobs, return_exceptions=True)
+
+            # Process results and collect successful data
+            all_data = []
+            for chunk_index, result in results:
+                if isinstance(result, Exception):
+                    logging.error(f"Chunk {chunk_index + 1} failed with exception: {result}")
+                elif result is not None:
+                    all_data.append(result)
+                    logging.info(f"Collected data from chunk {chunk_index + 1}")
+                else:
+                    logging.warning(f"Chunk {chunk_index + 1} returned no data")
 
             if all_data:
                 # Combine all chunk data into a single response
