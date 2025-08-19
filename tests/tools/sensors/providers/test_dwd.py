@@ -107,7 +107,12 @@ async def test_download_station_files_success(
     mock_file_response.status = 200
     mock_file_response.read.return_value = b"fake content"
 
-    mock_session.return_value.__aenter__.return_value.get.side_effect = [
+    # Properly mock the async context manager for ClientSession
+    mock_session_instance = AsyncMock()
+    mock_session.return_value = mock_session_instance
+    
+    # Mock the get method to return our mock responses
+    mock_session_instance.get.side_effect = [
         mock_response,  # Directory listing
         mock_file_response,  # Metadata file
         mock_file_response,  # First zip file
@@ -138,7 +143,12 @@ async def test_download_station_files_directory_access_failure(mock_session, tem
     mock_response = AsyncMock()
     mock_response.status = 404
 
-    mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value = mock_response
+    # Properly mock the async context manager for ClientSession
+    mock_session_instance = AsyncMock()
+    mock_session.return_value = mock_session_instance
+    
+    # Mock the get method to return error response
+    mock_session_instance.get.return_value = mock_response
 
     downloaded_files = await client._download_station_files(temp_dir=temp_download_path)
 
