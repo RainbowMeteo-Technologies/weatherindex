@@ -78,7 +78,7 @@ class DWDProvider(BaseProvider):
                     # Store the combined archive
                     with open(archive_path, "rb") as f:
                         archive_content = f.read()
-                    
+
                     await self._store_file(f"{timestamp}.zip", archive_content)
                     logging.info(f"Successfully stored combined DWD data for timestamp {timestamp} from "
                                  f"{len(downloaded_files)} station files")
@@ -103,7 +103,7 @@ class DWDProvider(BaseProvider):
             List of downloaded file paths
         """
         downloaded_files = []
-        
+
         # Get list of available files from the directory
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
@@ -115,28 +115,28 @@ class DWDProvider(BaseProvider):
                         all_files = re.findall(r'href="([^"]*)"', content)
                         # Filter out navigation links and keep only actual files
                         files = [f for f in all_files if f and not f.startswith("?") and not f.startswith("/")]
-                        
+
                         logging.info(f"Found {len(files)} files to download")
-                        
+
                         # Create async download tasks for all files
                         async def download_file(filename: str) -> str | None:
                             """Download a single file."""
                             try:
                                 file_url = urljoin(self.BASE_URL, filename)
                                 file_path = os.path.join(temp_dir, filename)
-                                
+
                                 async with session.get(file_url) as file_response:
                                     if file_response.status == 200:
                                         content = await file_response.read()
                                         with open(file_path, "wb") as f:
                                             f.write(content)
-                                        
+
                                         logging.info(f"Successfully downloaded {filename}")
                                         return file_path
                                     else:
                                         logging.warning(f"Failed to download {filename}: status {file_response.status}")
                                         return None
-                                        
+
                             except Exception as e:
                                 logging.error(f"Error downloading {filename}: {e}")
                                 return None
@@ -151,10 +151,10 @@ class DWDProvider(BaseProvider):
                                 logging.error(f"File download failed with exception: {result}")
                             elif result is not None:
                                 downloaded_files.append(result)
-                                
+
                     else:
                         logging.error(f"Failed to access DWD directory: status {response.status}")
-                        
+
         except Exception as e:
             logging.error(f"Error accessing DWD directory: {e}")
 

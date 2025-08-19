@@ -86,7 +86,11 @@ def test_dwd_custom_timeout(mock_publisher, temp_download_path, monkeypatch):
 
 @pytest.mark.asyncio
 @patch("sensors.providers.dwd.aiohttp.ClientSession")
-async def test_download_station_files_success(mock_session, temp_download_path, mock_publisher, sample_directory_listing):
+async def test_download_station_files_success(
+        mock_session,
+        temp_download_path,
+        mock_publisher,
+        sample_directory_listing):
     """Test successful downloading of all files."""
     client = DWDProvider(
         publisher=mock_publisher,
