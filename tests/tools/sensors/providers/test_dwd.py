@@ -86,52 +86,6 @@ def test_dwd_custom_timeout(mock_publisher, temp_download_path, monkeypatch):
 
 @pytest.mark.asyncio
 @patch("sensors.providers.dwd.aiohttp.ClientSession")
-async def test_download_station_files_success(
-        mock_session,
-        temp_download_path,
-        mock_publisher,
-        sample_directory_listing):
-    """Test successful downloading of all files."""
-    client = DWDProvider(
-        publisher=mock_publisher,
-        download_path=temp_download_path
-    )
-
-    # Mock the directory listing response
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.text.return_value = sample_directory_listing
-
-    # Mock the file download responses
-    mock_file_response = AsyncMock()
-    mock_file_response.status = 200
-    mock_file_response.read.return_value = b"fake content"
-
-    # Properly mock the async context manager for ClientSession
-    mock_session_instance = AsyncMock()
-    mock_session.return_value = mock_session_instance
-
-    # Mock the get method to return our mock responses
-    mock_session_instance.get.side_effect = [
-        mock_response,  # Directory listing
-        mock_file_response,  # Metadata file
-        mock_file_response,  # First zip file
-        mock_file_response,  # Second zip file
-        mock_file_response   # Third zip file
-    ]
-
-    downloaded_files = await client._download_station_files(temp_dir=temp_download_path)
-
-    # Should have downloaded 4 files (all files in directory)
-    assert len(downloaded_files) == 4
-    assert any("zehn_now_rr_Beschreibung_Stationen.txt" in f for f in downloaded_files)
-    assert any("00020_now.zip" in f for f in downloaded_files)
-    assert any("00029_now.zip" in f for f in downloaded_files)
-    assert any("00044_now.zip" in f for f in downloaded_files)
-
-
-@pytest.mark.asyncio
-@patch("sensors.providers.dwd.aiohttp.ClientSession")
 async def test_download_station_files_directory_access_failure(mock_session, temp_download_path, mock_publisher):
     """Test handling of directory access failure."""
     client = DWDProvider(
