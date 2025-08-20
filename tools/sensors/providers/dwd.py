@@ -137,8 +137,14 @@ class DWDProvider(BaseProvider):
                                         logging.warning(f"Failed to download {filename}: status {file_response.status}")
                                         return None
 
+                            except asyncio.TimeoutError as e:
+                                logging.error(f"Timeout error downloading {filename} (timeout: {self._timeout}s): {e}")
+                                return None
+                            except aiohttp.ClientError as e:
+                                logging.error(f"HTTP client error downloading {filename}: {e}")
+                                return None
                             except Exception as e:
-                                logging.error(f"Error downloading {filename}: {e}")
+                                logging.error(f"Unexpected error downloading {filename}: {e}")
                                 return None
 
                         # Download all files concurrently
@@ -155,8 +161,12 @@ class DWDProvider(BaseProvider):
                     else:
                         logging.error(f"Failed to access DWD directory: status {response.status}")
 
+        except asyncio.TimeoutError as e:
+            logging.error(f"Timeout error accessing DWD directory (timeout: {self._timeout}s): {e}")
+        except aiohttp.ClientError as e:
+            logging.error(f"HTTP client error accessing DWD directory: {e}")
         except Exception as e:
-            logging.error(f"Error accessing DWD directory: {e}")
+            logging.error(f"Unexpected error accessing DWD directory: {e}")
 
         return downloaded_files
 

@@ -197,8 +197,15 @@ class FSDIOpenDataProvider(BaseProvider):
                                     f"Failed to download CSV for station {station_id}: status {response.status}")
                                 return None
 
+                except asyncio.TimeoutError as e:
+                    logging.error(
+                        f"Timeout error downloading CSV for station {feature.get('id', 'unknown')} (timeout: {self._timeout}s): {e}")
+                    return None
+                except aiohttp.ClientError as e:
+                    logging.error(f"HTTP client error downloading CSV for station {feature.get('id', 'unknown')}: {e}")
+                    return None
                 except Exception as e:
-                    logging.error(f"Error downloading CSV for station {feature.get('id', 'unknown')}: {e}")
+                    logging.error(f"Unexpected error downloading CSV for station {feature.get('id', 'unknown')}: {e}")
                     return None
 
             # Download all CSV files concurrently
