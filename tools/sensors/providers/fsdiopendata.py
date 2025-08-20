@@ -69,7 +69,7 @@ class FSDIOpenDataProvider(BaseProvider):
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Download STAC API response
                 stac_data = await self._fetch_stac_data()
-                
+
                 if not stac_data:
                     logging.error("Failed to fetch STAC API data")
                     return
@@ -116,7 +116,8 @@ class FSDIOpenDataProvider(BaseProvider):
                 async with session.get(self.API_ENDPOINT, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        logging.info(f"Successfully fetched STAC API data with {len(data.get('features', []))} stations")
+                        logging.info(
+                            f"Successfully fetched STAC API data with {len(data.get('features', []))} stations")
                         return data
                     else:
                         logging.error(f"STAC API returned status {response.status}")
@@ -192,7 +193,8 @@ class FSDIOpenDataProvider(BaseProvider):
                                 logging.info(f"Successfully downloaded CSV for station {station_id}")
                                 return file_path
                             else:
-                                logging.warning(f"Failed to download CSV for station {station_id}: status {response.status}")
+                                logging.warning(
+                                    f"Failed to download CSV for station {station_id}: status {response.status}")
                                 return None
 
                 except Exception as e:

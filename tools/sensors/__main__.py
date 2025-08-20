@@ -79,7 +79,8 @@ if __name__ == "__main__":
     dwd_parser.set_defaults(func=_create_dwd)
 
     # FSDIOpenData
-    fsdiopendata_parser = subparser.add_parser("fsdiopendata", help="Download observations from Switzerland FSDI Open Data")
+    fsdiopendata_parser = subparser.add_parser("fsdiopendata",
+                                               help="Download observations from Switzerland FSDI Open Data")
     fsdiopendata_parser.set_defaults(func=_create_fsdiopendata)
 
     args = parser.parse_args()
