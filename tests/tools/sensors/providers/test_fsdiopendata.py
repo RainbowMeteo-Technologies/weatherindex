@@ -44,11 +44,16 @@ class TestFSDIOpenDataProvider:
         assert client._delay == 5
         assert client._timeout == 30.0
 
-    def test_fsdiopendata_custom_timeout(self, mock_publisher, temp_download_path, monkeypatch):
+        def test_fsdiopendata_custom_timeout(self, mock_publisher, temp_download_path, monkeypatch):
         """Test that FSDIOpenDataProvider uses custom timeout from environment."""
         monkeypatch.setenv("FSDIOPENDATA_TIMEOUT", "60.0")
 
-        client = FSDIOpenDataProvider(
+        # Force reload of the module to pick up new environment variable
+        import importlib
+        import sensors.providers.fsdiopendata
+        importlib.reload(sensors.providers.fsdiopendata)
+
+        client = sensors.providers.fsdiopendata.FSDIOpenDataProvider(
             publisher=mock_publisher,
             download_path=temp_download_path
         )
@@ -82,7 +87,12 @@ class TestFSDIOpenDataProvider:
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None
-            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            # Fix the async context manager mocking
+            mock_get_response = AsyncMock()
+            mock_get_response.__aenter__.return_value = mock_response
+            mock_get_response.__aexit__.return_value = None
+            mock_session_instance.get.return_value = mock_get_response
 
             mock_session.return_value = mock_session_instance
 
@@ -105,7 +115,12 @@ class TestFSDIOpenDataProvider:
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None
-            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            # Fix the async context manager mocking
+            mock_get_response = AsyncMock()
+            mock_get_response.__aenter__.return_value = mock_response
+            mock_get_response.__aexit__.return_value = None
+            mock_session_instance.get.return_value = mock_get_response
 
             mock_session.return_value = mock_session_instance
 
@@ -163,7 +178,12 @@ class TestFSDIOpenDataProvider:
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None
-            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            # Fix the async context manager mocking
+            mock_get_response = AsyncMock()
+            mock_get_response.__aenter__.return_value = mock_response
+            mock_get_response.__aexit__.return_value = None
+            mock_session_instance.get.return_value = mock_get_response
 
             mock_session.return_value = mock_session_instance
 
