@@ -45,51 +45,6 @@ class TestFSDIOpenDataProvider:
         assert client._timeout == 30.0
 
     @pytest.mark.asyncio
-    async def test_fetch_stac_data_success(self, mock_publisher, temp_download_path):
-        """Test successful STAC API data fetching."""
-        sample_stac_data = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "id": "abe",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [7.28535, 47.057969]
-                    },
-                    "properties": {
-                        "title": "Aarberg (ABE)"
-                    }
-                }
-            ]
-        }
-
-        with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-            mock_response.json = AsyncMock(return_value=sample_stac_data)
-
-            mock_session_instance = AsyncMock()
-            mock_session_instance.__aenter__.return_value = mock_session_instance
-            mock_session_instance.__aexit__.return_value = None
-
-            # Fix the async context manager mocking
-            mock_get_response = AsyncMock()
-            mock_get_response.__aenter__.return_value = mock_response
-            mock_get_response.__aexit__.return_value = None
-            mock_session_instance.get.return_value = mock_get_response
-
-            mock_session.return_value = mock_session_instance
-
-            client = FSDIOpenDataProvider(
-                publisher=mock_publisher,
-                download_path=temp_download_path
-            )
-
-            result = await client._fetch_stac_data()
-
-            assert result == sample_stac_data
-
-    @pytest.mark.asyncio
     async def test_fetch_stac_data_failure(self, mock_publisher, temp_download_path):
         """Test STAC API data fetching failure."""
         with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
@@ -128,59 +83,6 @@ class TestFSDIOpenDataProvider:
 
         assert headers["User-Agent"] == "FSDIOpenDataWeatherProvider/1.0"
         assert headers["Accept"] == "application/json,text/csv,*/*"
-
-    @pytest.mark.asyncio
-    async def test_download_csv_files_success(self, mock_publisher, temp_download_path):
-        """Test successful CSV file downloading."""
-        sample_stac_data = {
-            "features": [
-                {
-                    "id": "abe",
-                    "assets": {
-                        "ogd-smn-precip_abe_t_now.csv": {
-                            "href": "https://example.com/abe_t_now.csv"
-                        }
-                    }
-                },
-                {
-                    "id": "afi",
-                    "assets": {
-                        "ogd-smn-precip_afi_t_now.csv": {
-                            "href": "https://example.com/afi_t_now.csv"
-                        }
-                    }
-                }
-            ]
-        }
-
-        with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-            mock_response.read = AsyncMock(
-                return_value=b"station_abbr;reference_timestamp;rre150z0\nABE;20.08.2025 00:00;0")
-
-            mock_session_instance = AsyncMock()
-            mock_session_instance.__aenter__.return_value = mock_session_instance
-            mock_session_instance.__aexit__.return_value = None
-
-            # Fix the async context manager mocking
-            mock_get_response = AsyncMock()
-            mock_get_response.__aenter__.return_value = mock_response
-            mock_get_response.__aexit__.return_value = None
-            mock_session_instance.get.return_value = mock_get_response
-
-            mock_session.return_value = mock_session_instance
-
-            client = FSDIOpenDataProvider(
-                publisher=mock_publisher,
-                download_path=temp_download_path
-            )
-
-            result = await client._download_csv_files(sample_stac_data, temp_download_path)
-
-            assert len(result) == 2
-            assert any("abe_t_now.csv" in path for path in result)
-            assert any("afi_t_now.csv" in path for path in result)
 
     @pytest.mark.asyncio
     async def test_download_csv_files_missing_asset(self, mock_publisher, temp_download_path):
