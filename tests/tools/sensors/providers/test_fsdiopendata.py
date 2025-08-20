@@ -1,0 +1,238 @@
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from sensors.providers.fsdiopendata import FSDIOpenDataProvider
+
+
+class TestFSDIOpenDataProvider:
+    """Test FSDIOpenData provider functionality."""
+
+    @pytest.fixture
+    def mock_publisher(self):
+        """Create a mock publisher for testing"""
+        publisher = AsyncMock()
+        return publisher
+
+    @pytest.fixture
+    def temp_download_path(self, tmp_path):
+        """Create a temporary download path for testing"""
+        return str(tmp_path)
+
+    def test_fsdiopendata_smoke(self, mock_publisher, temp_download_path):
+        """Test basic instantiation and inheritance of FSDIOpenDataProvider."""
+        client = FSDIOpenDataProvider(
+            publisher=mock_publisher,
+            download_path=temp_download_path,
+            frequency=600,
+            delay=5
+        )
+
+        assert client is not None
+        assert isinstance(client, FSDIOpenDataProvider)
+        assert client._service == "FSDIOpenData"
+        assert client._timeout == 30.0
+
+    def test_fsdiopendata_default_values(self, mock_publisher, temp_download_path):
+        """Test that FSDIOpenDataProvider uses correct default values."""
+        client = FSDIOpenDataProvider(
+            publisher=mock_publisher,
+            download_path=temp_download_path
+        )
+
+        assert client._frequency == 600
+        assert client._delay == 5
+        assert client._timeout == 30.0
+
+    def test_fsdiopendata_custom_timeout(self, mock_publisher, temp_download_path, monkeypatch):
+        """Test that FSDIOpenDataProvider uses custom timeout from environment."""
+        monkeypatch.setenv("FSDIOPENDATA_TIMEOUT", "60.0")
+
+        client = FSDIOpenDataProvider(
+            publisher=mock_publisher,
+            download_path=temp_download_path
+        )
+
+        assert client._timeout == 60.0
+
+    @pytest.mark.asyncio
+    async def test_fetch_stac_data_success(self, mock_publisher, temp_download_path):
+        """Test successful STAC API data fetching."""
+        sample_stac_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "id": "abe",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [7.28535, 47.057969]
+                    },
+                    "properties": {
+                        "title": "Aarberg (ABE)"
+                    }
+                }
+            ]
+        }
+
+        with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(return_value=sample_stac_data)
+
+            mock_session_instance = AsyncMock()
+            mock_session_instance.__aenter__.return_value = mock_session_instance
+            mock_session_instance.__aexit__.return_value = None
+            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            mock_session.return_value = mock_session_instance
+
+            client = FSDIOpenDataProvider(
+                publisher=mock_publisher,
+                download_path=temp_download_path
+            )
+
+            result = await client._fetch_stac_data()
+
+            assert result == sample_stac_data
+
+    @pytest.mark.asyncio
+    async def test_fetch_stac_data_failure(self, mock_publisher, temp_download_path):
+        """Test STAC API data fetching failure."""
+        with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
+            mock_response = AsyncMock()
+            mock_response.status = 404
+
+            mock_session_instance = AsyncMock()
+            mock_session_instance.__aenter__.return_value = mock_session_instance
+            mock_session_instance.__aexit__.return_value = None
+            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            mock_session.return_value = mock_session_instance
+
+            client = FSDIOpenDataProvider(
+                publisher=mock_publisher,
+                download_path=temp_download_path
+            )
+
+            result = await client._fetch_stac_data()
+
+            assert result is None
+
+    def test_get_headers(self, mock_publisher, temp_download_path):
+        """Test that headers are correctly set."""
+        client = FSDIOpenDataProvider(
+            publisher=mock_publisher,
+            download_path=temp_download_path
+        )
+
+        headers = client._get_headers()
+
+        assert headers["User-Agent"] == "FSDIOpenDataWeatherProvider/1.0"
+        assert headers["Accept"] == "application/json,text/csv,*/*"
+
+    @pytest.mark.asyncio
+    async def test_download_csv_files_success(self, mock_publisher, temp_download_path):
+        """Test successful CSV file downloading."""
+        sample_stac_data = {
+            "features": [
+                {
+                    "id": "abe",
+                    "assets": {
+                        "ogd-smn-precip_abe_t_now.csv": {
+                            "href": "https://example.com/abe_t_now.csv"
+                        }
+                    }
+                },
+                {
+                    "id": "afi",
+                    "assets": {
+                        "ogd-smn-precip_afi_t_now.csv": {
+                            "href": "https://example.com/afi_t_now.csv"
+                        }
+                    }
+                }
+            ]
+        }
+
+        with patch("sensors.providers.fsdiopendata.aiohttp.ClientSession") as mock_session:
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.read = AsyncMock(
+                return_value=b"station_abbr;reference_timestamp;rre150z0\nABE;20.08.2025 00:00;0")
+
+            mock_session_instance = AsyncMock()
+            mock_session_instance.__aenter__.return_value = mock_session_instance
+            mock_session_instance.__aexit__.return_value = None
+            mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+
+            mock_session.return_value = mock_session_instance
+
+            client = FSDIOpenDataProvider(
+                publisher=mock_publisher,
+                download_path=temp_download_path
+            )
+
+            result = await client._download_csv_files(sample_stac_data, temp_download_path)
+
+            assert len(result) == 2
+            assert any("abe_t_now.csv" in path for path in result)
+            assert any("afi_t_now.csv" in path for path in result)
+
+    @pytest.mark.asyncio
+    async def test_download_csv_files_missing_asset(self, mock_publisher, temp_download_path):
+        """Test CSV downloading with missing '_t_now.csv' asset."""
+        sample_stac_data = {
+            "features": [
+                {
+                    "id": "abe",
+                    "assets": {
+                        "ogd-smn-precip_abe_d_historical.csv": {
+                            "href": "https://example.com/abe_d_historical.csv"
+                        }
+                    }
+                }
+            ]
+        }
+
+        client = FSDIOpenDataProvider(
+            publisher=mock_publisher,
+            download_path=temp_download_path
+        )
+
+        result = await client._download_csv_files(sample_stac_data, temp_download_path)
+
+        assert len(result) == 0
+
+    @pytest.mark.asyncio
+    async def test_create_combined_archive(self, mock_publisher, temp_download_path, tmp_path):
+        """Test combined archive creation."""
+        import os
+        import tempfile
+
+        # Create temporary files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            test_file1 = os.path.join(temp_dir, "test1.txt")
+            test_file2 = os.path.join(temp_dir, "test2.txt")
+
+            with open(test_file1, "w") as f:
+                f.write("test content 1")
+            with open(test_file2, "w") as f:
+                f.write("test content 2")
+
+            archive_path = os.path.join(temp_dir, "test.zip")
+
+            client = FSDIOpenDataProvider(
+                publisher=mock_publisher,
+                download_path=temp_download_path
+            )
+
+            await client._create_combined_archive([test_file1, test_file2], archive_path)
+
+            assert os.path.exists(archive_path)
+
+            # Verify archive contents
+            import zipfile
+            with zipfile.ZipFile(archive_path, "r") as zip_file:
+                file_list = zip_file.namelist()
+                assert "test1.txt" in file_list
+                assert "test2.txt" in file_list
