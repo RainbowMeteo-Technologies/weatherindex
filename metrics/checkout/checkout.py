@@ -212,7 +212,13 @@ class CheckoutExecutor:
                               period=constants.METAR_PERIOD),
             DataSource.create(vendor="geosphere", s3_uri=observations_info.s3_uri_geosphere,
                               data_folder=os.path.join(self._session.data_folder, DataVendor.GeoSphere.value),
-                              period=constants.GEOSPHERE_PERIOD)
+                              period=constants.GEOSPHERE_PERIOD),
+            DataSource.create(vendor="dwd", s3_uri=observations_info.s3_uri_dwd,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.DWD.value),
+                              period=constants.DWD_PERIOD),
+            DataSource.create(vendor="fsdiopendata", s3_uri=observations_info.s3_uri_fsdiopendata,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.FSDIOpenData.value),
+                              period=constants.FSDIOPENDATA_PERIOD)
         ]
 
     def run(self):
@@ -264,7 +270,9 @@ def checkout(start_time: int,
                 f"- s3_uri_weathercompany = {forecasts_source.s3_uri_weathercompany}\n"
                 f"Observation sources:\n"
                 f"- s3_uri_metar = {observations_source.s3_uri_metar}\n"
-                f"- s3_uri_geosphere = {observations_source.s3_uri_geosphere}")
+                f"- s3_uri_geosphere = {observations_source.s3_uri_geosphere}\n"
+                f"- s3_uri_dwd = {observations_source.s3_uri_dwd}\n"
+                f"- s3_uri_fsdiopendata = {observations_source.s3_uri_fsdiopendata}")
 
     checkout_executor = CheckoutExecutor(session=session,
                                          forecasts_info=forecasts_source,

@@ -16,4 +16,5 @@ class DataVendor(BaseDataVendor, Enum):
 
     Metar = "metar"
     GeoSphere = "geosphere"
+    DWD = "dwd"
     FSDIOpenData = "fsdiopendata"

@@ -1,7 +1,7 @@
 METAR_PERIOD = 120          # 2 minutes
 GEOSPHERE_PERIOD = 600      # 10 minutes
 DWD_PERIOD = 600            # 10 minutes
-FSDIOpenData_PERIOD = 600   # 10 minutes
+FSDIOPENDATA_PERIOD = 600   # 10 minutes
 
 RAINVIEWER_PERIOD = 600     # 10 minutes
 WEATHERKIT_PERIOD = 600     # 10 minutes
