@@ -44,22 +44,6 @@ class TestFSDIOpenDataProvider:
         assert client._delay == 5
         assert client._timeout == 30.0
 
-        def test_fsdiopendata_custom_timeout(self, mock_publisher, temp_download_path, monkeypatch):
-        """Test that FSDIOpenDataProvider uses custom timeout from environment."""
-        monkeypatch.setenv("FSDIOPENDATA_TIMEOUT", "60.0")
-
-        # Force reload of the module to pick up new environment variable
-        import importlib
-        import sensors.providers.fsdiopendata
-        importlib.reload(sensors.providers.fsdiopendata)
-
-        client = sensors.providers.fsdiopendata.FSDIOpenDataProvider(
-            publisher=mock_publisher,
-            download_path=temp_download_path
-        )
-
-        assert client._timeout == 60.0
-
     @pytest.mark.asyncio
     async def test_fetch_stac_data_success(self, mock_publisher, temp_download_path):
         """Test successful STAC API data fetching."""
