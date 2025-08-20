@@ -1,9 +1,9 @@
+import aiohttp
+import asyncio
+import datetime as dt
 import json
 import logging
-import datetime as dt
-import aiohttp
 import os
-import asyncio
 
 from sensors.providers.provider import BaseProvider
 

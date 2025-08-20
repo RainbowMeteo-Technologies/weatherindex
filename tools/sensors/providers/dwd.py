@@ -1,13 +1,13 @@
-import logging
-import datetime as dt
 import aiohttp
-import os
 import asyncio
-import zipfile
+import datetime as dt
+import logging
+import os
 import tempfile
-from urllib.parse import urljoin
+import zipfile
 
 from sensors.providers.provider import BaseProvider
+from urllib.parse import urljoin
 
 
 class DWDProvider(BaseProvider):
