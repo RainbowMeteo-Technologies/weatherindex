@@ -52,24 +52,6 @@ class DWDProvider(BaseProvider):
         ----------
         timestamp : int
             The timestamp of the data to fetch
-        """
-        logging.info(f"Running a task {self._service} {timestamp} / {dt.datetime.fromtimestamp(timestamp).isoformat()}")
-
-        result = await self.fetch_data(timestamp)
-
-        if result is None:
-            logging.info(f"Data unchanged for {self._service} at timestamp {timestamp}, skipping download")
-
-        logging.info(f"Completing a {self._service} task")
-
-    async def fetch_data(self, timestamp: int) -> bool | None:
-        """
-        Fetch the data for the given timestamp
-
-        Parameters
-        ----------
-        timestamp : int
-            The timestamp of the data to fetch
 
         Returns
         -------
@@ -84,7 +66,7 @@ class DWDProvider(BaseProvider):
                 logging.error("Failed to fetch meta-file checksum, proceeding with download")
             elif current_checksum == self._last_meta_checksum:
                 logging.info(f"Meta-file checksum unchanged ({current_checksum[:8]}...), data not updated")
-                return None
+                return
             else:
                 logging.info(
                     f"Meta-file checksum changed from {self._last_meta_checksum[:8] if self._last_meta_checksum else 'None'}... to {current_checksum[:8]}..., proceeding with download")
@@ -109,14 +91,11 @@ class DWDProvider(BaseProvider):
                     await self._store_file(f"{timestamp}.zip", archive_content)
                     logging.info(f"Successfully stored combined DWD data for timestamp {timestamp} from "
                                  f"{len(downloaded_files)} station files")
-                    return True
                 else:
                     logging.error(f"Failed to download any DWD station files for timestamp {timestamp}")
-                    return False
 
         except BaseException as e:
             logging.error(f"Error fetching DWD data for timestamp {timestamp}: {e}")
-            return False
 
     async def _get_meta_file_checksum(self) -> str | None:
         """

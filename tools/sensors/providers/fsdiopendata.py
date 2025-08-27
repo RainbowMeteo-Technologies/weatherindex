@@ -48,21 +48,6 @@ class FSDIOpenDataProvider(BaseProvider):
         timestamp : int
             The timestamp of the data to fetch
         """
-        logging.info(f"Running a task {self._service} {timestamp} / {dt.datetime.fromtimestamp(timestamp).isoformat()}")
-
-        await self.fetch_data(timestamp)
-
-        logging.info(f"Completing a {self._service} task")
-
-    async def fetch_data(self, timestamp: int):
-        """
-        Fetch the data for the given timestamp
-
-        Parameters
-        ----------
-        timestamp : int
-            The timestamp of the data to fetch
-        """
         try:
             # Download STAC API response and all CSV files
             logging.info("Fetching STAC API response and CSV files")

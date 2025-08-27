@@ -66,8 +66,8 @@ async def test_fetch_data_success(mock_http_get, mock_publisher, temp_download_p
 
     timestamp = 1718236800
 
-    # Test the fetch_data method
-    await client.fetch_data(timestamp)
+    # Test the fetch_job method
+    await client.fetch_job(timestamp)
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
@@ -95,8 +95,8 @@ async def test_fetch_data_exception_handling(mock_http_get, mock_publisher, temp
 
     timestamp = 1718236800
 
-    # Test the fetch_data method
-    await client.fetch_data(timestamp)
+    # Test the fetch_job method
+    await client.fetch_job(timestamp)
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
@@ -161,8 +161,8 @@ async def test_fetch_data_with_large_xml(mock_http_get, mock_publisher, temp_dow
 
     timestamp = 1718236800
 
-    # Test the fetch_data method
-    await client.fetch_data(timestamp)
+    # Test the fetch_job method
+    await client.fetch_job(timestamp)
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
@@ -188,8 +188,8 @@ async def test_fetch_data_with_special_characters(mock_http_get, mock_publisher,
 
     timestamp = 1718236800
 
-    # Test the fetch_data method
-    await client.fetch_data(timestamp)
+    # Test the fetch_job method
+    await client.fetch_job(timestamp)
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")

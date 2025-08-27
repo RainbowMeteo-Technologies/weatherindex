@@ -409,7 +409,7 @@ async def test_fetch_data_success(
 
     timestamp = 1718236800
 
-    await client.fetch_data(timestamp)
+    await client.fetch_job(timestamp)
 
     # Verify station IDs were fetched
     mock_fetch_station_ids.assert_called_once()
@@ -432,7 +432,7 @@ async def test_fetch_data_no_stations(mock_fetch_station_ids, mock_publisher, te
 
     timestamp = 1718236800
 
-    await client.fetch_data(timestamp)
+    await client.fetch_job(timestamp)
 
     # Verify station IDs were fetched
     mock_fetch_station_ids.assert_called_once()
@@ -464,7 +464,7 @@ async def test_fetch_data_chunking(
 
     timestamp = 1718236800
 
-    await client.fetch_data(timestamp)
+    await client.fetch_job(timestamp)
 
     # Should be called 3 times (250 stations / 100 per chunk = 3 chunks)
     assert mock_make_api_call.call_count == 3
@@ -488,7 +488,7 @@ async def test_fetch_data_api_failure(mock_make_api_call, mock_fetch_station_ids
 
     timestamp = 1718236800
 
-    await client.fetch_data(timestamp)
+    await client.fetch_job(timestamp)
 
     # Verify station IDs were fetched
     mock_fetch_station_ids.assert_called_once()

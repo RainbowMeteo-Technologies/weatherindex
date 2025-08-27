@@ -20,21 +20,6 @@ class MetarSource(BaseProvider):
         timestamp : int
             The timestamp of the data to fetch
         """
-        logging.info(f"Running a task {self._service} {timestamp} / {dt.datetime.fromtimestamp(timestamp).isoformat()}")
-
-        await self.fetch_data(timestamp)
-
-        logging.info(f"Completing a {self._service} task")
-
-    async def fetch_data(self, timestamp: int):
-        """
-        Fetch the data for the given timestamp
-
-        Parameters
-        ----------
-        timestamp : int
-            The timestamp of the data to fetch
-        """
         try:
             data = await Http.get("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
             # we need to decompress the data and put raw xml data into the storage
