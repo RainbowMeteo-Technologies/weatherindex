@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from metrics.calc.forecast_manager import ForecastManager, DataVendor
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
+from metrics.utils.frame import concat_frames
 from metrics.utils.precipitation import PrecipitationType
 from metrics.utils.time import floor_timestamp
 
@@ -118,7 +119,14 @@ class Worker:
             if os.path.exists(file_path):
                 loaded_tables.append(pandas.read_parquet(file_path))
 
-        sensor_observations = pandas.concat(loaded_tables)
+        sensor_observations = concat_frames(frames=loaded_tables,
+                                            columns=["id",
+                                                     "lon", "lat",
+                                                     "timestamp",
+                                                     "precip_rate", "precip_type",
+                                                     "px", "py",
+                                                     "tile_x", "tile_y",
+                                                     "sky_condition"])
 
         # check if need filtering
         if len(self._params.sensor_ids) > 0:
@@ -374,7 +382,13 @@ class CalculateMetrics:
                           desc="Calculating metrics...",
                           ascii=True,
                           total=len(jobs)):
-                final_metrics = pandas.concat([final_metrics, m])
+                final_metrics = concat_frames(frames=[final_metrics, m],
+                                              columns=["id",
+                                                       "timestamp", "forecast_time",
+                                                       "precip_type_status_forecast", "precip_rate_forecast",
+                                                       "precip_type_status_observations", "precip_rate_observations",
+                                                       "forecasted_precip", "observed_precip",
+                                                       "tp", "fp", "tn", "fn"])
                 final_metrics.to_csv(output_csv, index=False)
 
         return final_metrics

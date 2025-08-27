@@ -39,11 +39,11 @@ docker-publish-sensors:docker-build-sensors
 
 # testing
 test:
-	export PYTHONPATH="${PYTHONPATH}:$(pwd)" && \
+	export PYTHONPATH="${PYTHONPATH}:$(CURDIR):$(CURDIR)/tools" && \
 	pytest tests/
 
 # test coverage
 coverage:
-	export PYTHONPATH="${PYTHONPATH}:$(pwd)" && \
+	export PYTHONPATH="${PYTHONPATH}:$(CURDIR):$(CURDIR)/tools" && \
 	coverage run --rcfile=.coveragerc -m pytest tests/ && \
 	coverage report --show-missing

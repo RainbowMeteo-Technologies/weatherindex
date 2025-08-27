@@ -10,6 +10,7 @@ from metrics.data_vendor import BaseDataVendor, DataVendor
 
 from metrics.session import Session
 from metrics.utils.time import floor_timestamp
+from metrics.utils.frame import concat_frames
 
 from rich.console import Console
 
@@ -82,7 +83,8 @@ class ForecastManager:
         Returns
         -------
         pandas.DataFrame
-            Table with forecast for each sensor that has next columns: "id", "precip_rate", "precip_type", "forecast_time"
+            Table with forecast for each sensor that has next columns:
+                "id", "precip_rate", "precip_type", "forecast_time", "timestamp"
         """
 
         sensor_ids = set(sensors_table["id"].unique())
@@ -111,4 +113,5 @@ class ForecastManager:
 
             curr_time += ForecastManager.DATA_STEP
 
-        return pandas.concat(loaded_forecasts)
+        return concat_frames(frames=loaded_forecasts,
+                             columns=["id", "precip_type", "precip_rate", "timestamp", "forecast_time"])
