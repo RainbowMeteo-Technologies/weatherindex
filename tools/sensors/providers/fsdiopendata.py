@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 
 from sensors.providers.provider import BaseProvider
+from typing_extensions import override
 
 
 class FSDIOpenDataProvider(BaseProvider):
@@ -39,6 +40,7 @@ class FSDIOpenDataProvider(BaseProvider):
 
         logging.info(f"Initialized FSDIOpenData provider with endpoint: {self.API_ENDPOINT}")
 
+    @override
     async def fetch_job(self, timestamp: int):
         """
         Fetch the data for the given timestamp

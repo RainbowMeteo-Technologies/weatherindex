@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 
 from sensors.providers.provider import BaseProvider
+from typing_extensions import override
 from urllib.parse import urljoin
 
 
@@ -44,6 +45,7 @@ class DWDProvider(BaseProvider):
 
         logging.info(f"Initialized DWD provider with base URL: {self.BASE_URL}")
 
+    @override
     async def fetch_job(self, timestamp: int):
         """
         Fetch the data for the given timestamp

@@ -6,6 +6,7 @@ import logging
 import os
 
 from sensors.providers.provider import BaseProvider
+from typing_extensions import override
 
 
 class GeoSphereProvider(BaseProvider):
@@ -79,6 +80,7 @@ class GeoSphereProvider(BaseProvider):
             logging.error(f"Error fetching station IDs from metadata API: {e}")
             return []
 
+    @override
     async def fetch_job(self, timestamp: int):
         """
         Fetch the data for the given timestamp
