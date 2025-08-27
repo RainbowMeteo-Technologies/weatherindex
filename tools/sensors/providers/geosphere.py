@@ -14,6 +14,8 @@ class GeoSphereProvider(BaseProvider):
 
     This provider makes API calls to the Austria weather service and processes
     the GeoJSON responses to extract precipitation data for multiple stations.
+
+    Documentation: https://dataset.api.hub.geosphere.at/v1/docs/
     """
 
     API_ENDPOINT = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min"
@@ -146,7 +148,7 @@ class GeoSphereProvider(BaseProvider):
             # Process results and collect successful data
             all_data = []
             for chunk_index, result in results:
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logging.error(f"Chunk {chunk_index + 1} failed with exception: {result}")
                 elif result is not None:
                     all_data.append(result)

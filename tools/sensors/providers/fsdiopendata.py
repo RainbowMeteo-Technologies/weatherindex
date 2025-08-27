@@ -16,6 +16,8 @@ class FSDIOpenDataProvider(BaseProvider):
 
     This provider downloads precipitation data from the Swiss STAC API and processes
     the CSV responses to extract precipitation observations for multiple stations.
+
+    Documentation: https://opendatadocs.meteoschweiz.ch/general/download#how-to-download-files-automatically
     """
 
     API_ENDPOINT = "https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-smn-precip/items"
@@ -204,7 +206,7 @@ class FSDIOpenDataProvider(BaseProvider):
                 except aiohttp.ClientError as e:
                     logging.error(f"HTTP client error downloading CSV for station {feature.get('id', 'unknown')}: {e}")
                     return None
-                except Exception as e:
+                except BaseException as e:
                     logging.error(f"Unexpected error downloading CSV for station {feature.get('id', 'unknown')}: {e}")
                     return None
 
@@ -214,14 +216,14 @@ class FSDIOpenDataProvider(BaseProvider):
 
             # Collect successful downloads
             for result in results:
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logging.error(f"CSV download failed with exception: {result}")
                 elif result is not None:
                     downloaded_files.append(result)
 
             logging.info(f"Successfully downloaded {len(downloaded_files)} CSV files out of {len(features)} stations")
 
-        except Exception as e:
+        except BaseException as e:
             logging.error(f"Error downloading CSV files: {e}")
 
         return downloaded_files

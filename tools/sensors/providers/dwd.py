@@ -1,8 +1,10 @@
 import aiohttp
 import asyncio
 import datetime as dt
+import hashlib
 import logging
 import os
+import re
 import tempfile
 import zipfile
 
@@ -16,9 +18,13 @@ class DWDProvider(BaseProvider):
 
     This provider downloads precipitation data from DWD's open data directory and processes
     the station-specific zip files to extract precipitation observations for multiple stations.
+
+    See https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/precipitation/now/ for
+    examples of how data is stored.
     """
 
     BASE_URL = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/precipitation/now/"
+    META_FILE_URL = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/precipitation/now/zehn_now_rr_Beschreibung_Stationen.txt"
     DOWNLOAD_TIMEOUT = float(os.getenv("DWD_TIMEOUT", 30.0))
 
     def __init__(self, frequency: int = 600, delay: int = 5, **kwargs):
@@ -34,6 +40,7 @@ class DWDProvider(BaseProvider):
         """
         super().__init__("DWD", frequency, delay, **kwargs)
         self._timeout = self.DOWNLOAD_TIMEOUT
+        self._last_meta_checksum = None
 
         logging.info(f"Initialized DWD provider with base URL: {self.BASE_URL}")
 
@@ -48,11 +55,14 @@ class DWDProvider(BaseProvider):
         """
         logging.info(f"Running a task {self._service} {timestamp} / {dt.datetime.fromtimestamp(timestamp).isoformat()}")
 
-        await self.fetch_data(timestamp)
+        result = await self.fetch_data(timestamp)
+
+        if result is None:
+            logging.info(f"Data unchanged for {self._service} at timestamp {timestamp}, skipping download")
 
         logging.info(f"Completing a {self._service} task")
 
-    async def fetch_data(self, timestamp: int):
+    async def fetch_data(self, timestamp: int) -> bool | None:
         """
         Fetch the data for the given timestamp
 
@@ -60,12 +70,29 @@ class DWDProvider(BaseProvider):
         ----------
         timestamp : int
             The timestamp of the data to fetch
+
+        Returns
+        -------
+        bool | None
+            True if data was downloaded and stored, None if data was unchanged
         """
         try:
+            logging.info("Checking if data has been updated by comparing meta-file checksum")
+            current_checksum = await self._get_meta_file_checksum()
+
+            if current_checksum is None:
+                logging.error("Failed to fetch meta-file checksum, proceeding with download")
+            elif current_checksum == self._last_meta_checksum:
+                logging.info(f"Meta-file checksum unchanged ({current_checksum[:8]}...), data not updated")
+                return None
+            else:
+                logging.info(
+                    f"Meta-file checksum changed from {self._last_meta_checksum[:8] if self._last_meta_checksum else 'None'}... to {current_checksum[:8]}..., proceeding with download")
+                self._last_meta_checksum = current_checksum
+
             # Download all available station files
             logging.info("Fetching all available DWD station files")
 
-            # Create a temporary directory for downloads
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Download all station files
                 downloaded_files = await self._download_station_files(temp_dir)
@@ -82,11 +109,43 @@ class DWDProvider(BaseProvider):
                     await self._store_file(f"{timestamp}.zip", archive_content)
                     logging.info(f"Successfully stored combined DWD data for timestamp {timestamp} from "
                                  f"{len(downloaded_files)} station files")
+                    return True
                 else:
                     logging.error(f"Failed to download any DWD station files for timestamp {timestamp}")
+                    return False
 
         except BaseException as e:
             logging.error(f"Error fetching DWD data for timestamp {timestamp}: {e}")
+            return False
+
+    async def _get_meta_file_checksum(self) -> str | None:
+        """
+        Download the meta-file and calculate its checksum to detect changes.
+
+        Returns
+        -------
+        str | None
+            The SHA-256 checksum of the meta-file or None if failed
+        """
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
+                async with session.get(self.META_FILE_URL) as response:
+                    if response.status == 200:
+                        content = await response.read()
+                        checksum = hashlib.sha256(content).hexdigest()
+                        return checksum
+                    else:
+                        logging.error(f"Meta-file download returned status {response.status}")
+                        return None
+        except asyncio.TimeoutError as e:
+            logging.error(f"Timeout error downloading meta-file (timeout: {self._timeout}s): {e}")
+            return None
+        except aiohttp.ClientError as e:
+            logging.error(f"HTTP client error downloading meta-file: {e}")
+            return None
+        except BaseException as e:
+            logging.error(f"Unexpected error downloading meta-file: {e}")
+            return None
 
     async def _download_station_files(self, temp_dir: str) -> list[str]:
         """
@@ -107,65 +166,66 @@ class DWDProvider(BaseProvider):
         # Get list of available files from the directory
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
+                content = None
                 async with session.get(self.BASE_URL) as response:
                     if response.status == 200:
                         content = await response.text()
-                        # Extract all files from the directory listing
-                        import re
-                        all_files = re.findall(r'href="([^"]*)"', content)
-                        # Filter out navigation links and keep only actual files
-                        files = [f for f in all_files if f and not f.startswith("?") and not f.startswith("/")]
-
-                        logging.info(f"Found {len(files)} files to download")
-
-                        # Create async download tasks for all files
-                        async def download_file(filename: str) -> str | None:
-                            """Download a single file."""
-                            try:
-                                file_url = urljoin(self.BASE_URL, filename)
-                                file_path = os.path.join(temp_dir, filename)
-
-                                async with session.get(file_url) as file_response:
-                                    if file_response.status == 200:
-                                        content = await file_response.read()
-                                        with open(file_path, "wb") as f:
-                                            f.write(content)
-
-                                        logging.info(f"Successfully downloaded {filename}")
-                                        return file_path
-                                    else:
-                                        logging.warning(f"Failed to download {filename}: status {file_response.status}")
-                                        return None
-
-                            except asyncio.TimeoutError as e:
-                                logging.error(f"Timeout error downloading {filename} (timeout: {self._timeout}s): {e}")
-                                return None
-                            except aiohttp.ClientError as e:
-                                logging.error(f"HTTP client error downloading {filename}: {e}")
-                                return None
-                            except Exception as e:
-                                logging.error(f"Unexpected error downloading {filename}: {e}")
-                                return None
-
-                        # Download all files concurrently
-                        tasks = [download_file(filename) for filename in files]
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                        # Collect successful downloads
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logging.error(f"File download failed with exception: {result}")
-                            elif result is not None:
-                                downloaded_files.append(result)
-
                     else:
                         logging.error(f"Failed to access DWD directory: status {response.status}")
+                        return downloaded_files
+
+                # Extract all files from the directory listing
+                all_files = re.findall(r'href="([^"]*)"', content)
+                # Filter out navigation links and keep only actual files
+                files = [f for f in all_files if f and not f.startswith("?") and not f.startswith("/")]
+
+                logging.info(f"Found {len(files)} files to download")
+
+                # Create async download tasks for all files
+                async def download_file(filename: str) -> str | None:
+                    """Download a single file."""
+                    try:
+                        file_url = urljoin(self.BASE_URL, filename)
+                        file_path = os.path.join(temp_dir, filename)
+
+                        async with session.get(file_url) as file_response:
+                            if file_response.status == 200:
+                                content = await file_response.read()
+                                with open(file_path, "wb") as f:
+                                    f.write(content)
+
+                                logging.info(f"Successfully downloaded {filename}")
+                                return file_path
+                            else:
+                                logging.warning(f"Failed to download {filename}: status {file_response.status}")
+                                return None
+
+                    except asyncio.TimeoutError as e:
+                        logging.error(f"Timeout error downloading {filename} (timeout: {self._timeout}s): {e}")
+                        return None
+                    except aiohttp.ClientError as e:
+                        logging.error(f"HTTP client error downloading {filename}: {e}")
+                        return None
+                    except BaseException as e:
+                        logging.error(f"Unexpected error downloading {filename}: {e}")
+                        return None
+
+                # Download all files concurrently
+                tasks = [download_file(filename) for filename in files]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # Collect successful downloads
+                for result in results:
+                    if isinstance(result, BaseException):
+                        logging.error(f"File download failed with exception: {result}")
+                    elif result is not None:
+                        downloaded_files.append(result)
 
         except asyncio.TimeoutError as e:
             logging.error(f"Timeout error accessing DWD directory (timeout: {self._timeout}s): {e}")
         except aiohttp.ClientError as e:
             logging.error(f"HTTP client error accessing DWD directory: {e}")
-        except Exception as e:
+        except BaseException as e:
             logging.error(f"Unexpected error accessing DWD directory: {e}")
 
         return downloaded_files

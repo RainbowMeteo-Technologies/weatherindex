@@ -13,10 +13,7 @@ def _run_checkout(args: argparse.Namespace):
                                     s3_uri_rainbowai=args.s3_uri_rainbowai,
                                     s3_uri_weathercompany=args.s3_uri_weathercompany)
 
-    observations = ObservationSourcesInfo(s3_uri_metar=args.s3_uri_metar_data,
-                                          s3_uri_geosphere=args.s3_uri_geosphere_data,
-                                          s3_uri_dwd=args.s3_uri_dwd_data,
-                                          s3_uri_fsdiopendata=args.s3_uri_fsdiopendata_data)
+    observations = ObservationSourcesInfo(s3_uri_metar=args.s3_uri_metar_data)
 
     checkout(start_time=args.start_time,
              end_time=args.end_time,
@@ -50,12 +47,6 @@ if __name__ == "__main__":
     sensor_group = parser.add_argument_group(title="Sensors")
     sensor_group.add_argument("--s3-uri-metar-data", type=str, dest="s3_uri_metar_data", required=False, default=None,
                               help="S3 uri where to get metar data")
-    sensor_group.add_argument("--s3-uri-geosphere-data", type=str, dest="s3_uri_geosphere_data", required=False,
-                              default=None, help="S3 uri where to get GeoSphere Austria data")
-    sensor_group.add_argument("--s3-uri-dwd-data", type=str, dest="s3_uri_dwd_data", required=False, default=None,
-                              help="S3 uri where to get DWD data")
-    sensor_group.add_argument("--s3-uri-fsdiopendata-data", type=str, dest="s3_uri_fsdiopendata_data", required=False,
-                              default=None, help="S3 uri where to get FSDIOpenData data")
 
     # data
     s3_group = parser.add_argument_group(title="Data URI")
