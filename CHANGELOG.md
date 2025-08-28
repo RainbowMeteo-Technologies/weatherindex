@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.3`
+- Add meteo agencies measurement stations (CHE - FSDI, AUT - GeoSphere, GER - DWD)
+
 ## `0.2.2`
 - Add fetching reports to the forecast downloading tool
 - Add support for different download implementations in CheckoutExecutor 

@@ -158,7 +158,10 @@ class DWDProvider(BaseProvider):
                 # Extract all files from the directory listing
                 all_files = re.findall(r'href="([^"]*)"', content)
                 # Filter out navigation links and keep only actual files
-                files = [f for f in all_files if f and not f.startswith("?") and not f.startswith("/")]
+                files = [f for f in all_files if f and
+                         not f.startswith("?") and
+                         not f.startswith("/") and
+                         not f.startswith("../")]
 
                 logging.info(f"Found {len(files)} files to download")
 
