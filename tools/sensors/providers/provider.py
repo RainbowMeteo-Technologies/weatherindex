@@ -64,7 +64,7 @@ class BaseProvider:
             self._storage.close()
 
             # Check if storage buffer contains any data
-            buffer_size = len(self._storage.buffer.getvalue())
+            buffer_size = self._storage.buffer.getbuffer().nbytes
             if buffer_size == 0:
                 logging.info(
                     f"No data was collected for {self._service} at timestamp {timestamp}, skipping file operations")

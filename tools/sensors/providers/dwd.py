@@ -111,8 +111,8 @@ class DWDProvider(BaseProvider):
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
                 async with session.get(self.BASE_URL) as response:
                     if response.status == 200:
-                        content = await response.text()
-                        checksum = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                        content = await response.read()
+                        checksum = hashlib.sha256(content).hexdigest()
                         return checksum
                     else:
                         logging.error(f"Directory listing download returned status {response.status}")
