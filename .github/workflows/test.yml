@@ -74,3 +74,21 @@ jobs:
       - name: Run tests
         run: |
           docker run -t metrics-forecast-ci scripts/test/run_tests.sh
+
+  tests-sensors:
+    name: Testing sensors
+    runs-on: ubuntu-latest
+    needs: linters
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build docker image
+        run: |
+          docker build \
+            -f Dockerfile.sensors \
+            --target metrics-sensors-ci \
+            --platform linux/amd64 \
+            -t metrics-sensors-ci .
+      - name: Run tests
+        run: |
+          docker run -t metrics-sensors-ci scripts/test/run_tests.sh

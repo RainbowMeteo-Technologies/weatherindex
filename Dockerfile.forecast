@@ -25,9 +25,9 @@ COPY ./tools/forecast ${APP_DIR}/forecast
 # CI image
 FROM metrics-forecast AS metrics-forecast-ci
 
-COPY ./tests/tools/forecast ${APP_DIR}/tests/tools/forecast
 COPY ./tests/requirements.txt ${APP_DIR}/tests/requirements.txt
 
-COPY ./scripts ${APP_DIR}/scripts
-
 RUN pip3 install -r ${APP_DIR}/tests/requirements.txt --no-cache-dir
+
+COPY ./scripts ${APP_DIR}/scripts
+COPY ./tests/tools/forecast ${APP_DIR}/tests/tools/forecast

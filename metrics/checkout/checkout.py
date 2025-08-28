@@ -260,7 +260,7 @@ def checkout(start_time: int,
                 f"- s3_uri_rainbowai = {forecasts_source.s3_uri_rainbowai}\n"
                 f"- s3_uri_weathercompany = {forecasts_source.s3_uri_weathercompany}\n"
                 f"Observation sources:\n"
-                f"- s3_uri_metar = {observations_source.s3_uri_metar}")
+                f"- s3_uri_metar = {observations_source.s3_uri_metar}\n")
 
     checkout_executor = CheckoutExecutor(session=session,
                                          forecasts_info=forecasts_source,

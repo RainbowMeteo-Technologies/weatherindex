@@ -27,10 +27,10 @@ EXPOSE 8080
 # CI image
 FROM metrics AS metrics-ci
 
-COPY ./tests/metrics ${APP_DIR}/tests
 COPY ./tests/requirements.txt ${APP_DIR}/tests/requirements.txt
-COPY ./tests/utils.py ${APP_DIR}/tests/utils.py
-
-COPY ./scripts ${APP_DIR}/scripts
 
 RUN pip3 install -r ${APP_DIR}/tests/requirements.txt --no-cache-dir
+
+COPY ./scripts ${APP_DIR}/scripts
+COPY ./tests/metrics ${APP_DIR}/tests
+COPY ./tests/utils.py ${APP_DIR}/tests/utils.py

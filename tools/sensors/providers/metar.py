@@ -4,6 +4,7 @@ import datetime as dt
 
 from sensors.providers.provider import BaseProvider
 from sensors.utils.http import Http
+from typing_extensions import override
 
 
 class MetarSource(BaseProvider):
@@ -11,22 +12,8 @@ class MetarSource(BaseProvider):
     def __init__(self, frequency: int = 120, delay: int = 5, **kwargs):
         super().__init__("METAR", frequency, delay, **kwargs)
 
+    @override
     async def fetch_job(self, timestamp: int):
-        """
-        Fetch the data for the given timestamp
-
-        Parameters
-        ----------
-        timestamp : int
-            The timestamp of the data to fetch
-        """
-        logging.info(f"Running a task {self._service} {timestamp} / {dt.datetime.fromtimestamp(timestamp).isoformat()}")
-
-        await self.fetch_data(timestamp)
-
-        logging.info(f"Completing a {self._service} task")
-
-    async def fetch_data(self, timestamp: int):
         """
         Fetch the data for the given timestamp
 

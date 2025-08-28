@@ -21,3 +21,13 @@ RUN apt-get update && \
     rm requirements.txt
 
 COPY ./tools/sensors ${APP_DIR}/sensors
+
+# CI image
+FROM metrics-sensors AS metrics-sensors-ci
+
+COPY ./tests/requirements.txt ${APP_DIR}/tests/requirements.txt
+
+RUN pip3 install -r ${APP_DIR}/tests/requirements.txt --no-cache-dir
+
+COPY ./scripts ${APP_DIR}/scripts
+COPY ./tests/tools/sensors ${APP_DIR}/tests/tools/sensors
