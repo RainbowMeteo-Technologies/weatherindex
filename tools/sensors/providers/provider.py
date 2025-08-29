@@ -63,6 +63,14 @@ class BaseProvider:
             # Close the storage
             self._storage.close()
 
+            # Check if storage buffer contains any data
+            buffer_size = self._storage.buffer.getbuffer().nbytes
+            if buffer_size == 0:
+                logging.info(
+                    f"No data was collected for {self._service} at timestamp {timestamp}, skipping file operations")
+                logging.info(f"It took {time.time() - start_time} seconds to check data for {self._service}")
+                continue
+
             # Save the storage to the download path
             os.makedirs(self._download_path, exist_ok=True)
             file_name = f"{timestamp}.zip"

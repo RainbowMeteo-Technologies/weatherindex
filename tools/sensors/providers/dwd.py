@@ -25,7 +25,6 @@ class DWDProvider(BaseProvider):
     """
 
     BASE_URL = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/precipitation/now/"
-    META_FILE_URL = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/precipitation/now/zehn_now_rr_Beschreibung_Stationen.txt"
     DOWNLOAD_TIMEOUT = float(os.getenv("DWD_TIMEOUT", 30.0))
 
     def __init__(self, frequency: int = 600, delay: int = 5, **kwargs):
@@ -41,7 +40,7 @@ class DWDProvider(BaseProvider):
         """
         super().__init__("DWD", frequency, delay, **kwargs)
         self._timeout = self.DOWNLOAD_TIMEOUT
-        self._last_meta_checksum = None
+        self._last_directory_checksum = None
 
         logging.info(f"Initialized DWD provider with base URL: {self.BASE_URL}")
 
@@ -61,18 +60,18 @@ class DWDProvider(BaseProvider):
             True if data was downloaded and stored, None if data was unchanged
         """
         try:
-            logging.info("Checking if data has been updated by comparing meta-file checksum")
-            current_checksum = await self._get_meta_file_checksum()
+            logging.info("Checking if data has been updated by comparing directory listing checksum")
+            current_checksum = await self._get_directory_checksum()
 
             if current_checksum is None:
-                logging.error("Failed to fetch meta-file checksum, proceeding with download")
-            elif current_checksum == self._last_meta_checksum:
-                logging.info(f"Meta-file checksum unchanged ({current_checksum[:8]}...), data not updated")
+                logging.error("Failed to fetch directory listing checksum, proceeding with download")
+            elif current_checksum == self._last_directory_checksum:
+                logging.info(f"Directory listing checksum unchanged ({current_checksum[:8]}...), data not updated")
                 return
             else:
                 logging.info(
-                    f"Meta-file checksum changed from {self._last_meta_checksum[:8] if self._last_meta_checksum else 'None'}... to {current_checksum[:8]}..., proceeding with download")
-                self._last_meta_checksum = current_checksum
+                    f"Directory listing checksum changed from {self._last_directory_checksum[:8] if self._last_directory_checksum else 'None'}... to {current_checksum[:8]}..., proceeding with download")
+                self._last_directory_checksum = current_checksum
 
             # Download all available station files
             logging.info("Fetching all available DWD station files")
@@ -99,33 +98,33 @@ class DWDProvider(BaseProvider):
         except BaseException as e:
             logging.error(f"Error fetching DWD data for timestamp {timestamp}: {e}")
 
-    async def _get_meta_file_checksum(self) -> str | None:
+    async def _get_directory_checksum(self) -> str | None:
         """
-        Download the meta-file and calculate its checksum to detect changes.
+        Download the directory listing and calculate its checksum to detect changes.
 
         Returns
         -------
         str | None
-            The SHA-256 checksum of the meta-file or None if failed
+            The SHA-256 checksum of the directory listing HTML or None if failed
         """
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout)) as session:
-                async with session.get(self.META_FILE_URL) as response:
+                async with session.get(self.BASE_URL) as response:
                     if response.status == 200:
                         content = await response.read()
                         checksum = hashlib.sha256(content).hexdigest()
                         return checksum
                     else:
-                        logging.error(f"Meta-file download returned status {response.status}")
+                        logging.error(f"Directory listing download returned status {response.status}")
                         return None
         except asyncio.TimeoutError as e:
-            logging.error(f"Timeout error downloading meta-file (timeout: {self._timeout}s): {e}")
+            logging.error(f"Timeout error downloading directory listing (timeout: {self._timeout}s): {e}")
             return None
         except aiohttp.ClientError as e:
-            logging.error(f"HTTP client error downloading meta-file: {e}")
+            logging.error(f"HTTP client error downloading directory listing: {e}")
             return None
         except BaseException as e:
-            logging.error(f"Unexpected error downloading meta-file: {e}")
+            logging.error(f"Unexpected error downloading directory listing: {e}")
             return None
 
     async def _download_station_files(self, temp_dir: str) -> list[str]:
