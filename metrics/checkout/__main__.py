@@ -2,6 +2,11 @@ import argparse
 
 from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo
 from metrics.checkout.checkout import checkout
+from metrics.utils.time_measure import TimeMeasure
+from rich.console import Console
+
+
+console = Console()
 
 
 def _run_checkout(args: argparse.Namespace):
@@ -69,4 +74,7 @@ if __name__ == "__main__":
     parser.set_defaults(func=_run_checkout)
 
     args = parser.parse_args()
+
+    tm = TimeMeasure()
     args.func(args)
+    console.log(f"Checkout completed in {tm():.2f} seconds...")

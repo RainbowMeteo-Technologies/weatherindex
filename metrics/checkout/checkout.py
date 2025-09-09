@@ -3,6 +3,7 @@ import metrics.checkout.constants as constants
 import os
 import typing
 
+from dataclasses import dataclass
 from metrics.checkout.constants import AGGREGATION_PERIOD
 from metrics.checkout.data_source import ForecastSourcesInfo, ObservationSourcesInfo, DataSource
 from metrics.data_vendor import DataVendor
@@ -71,6 +72,16 @@ def _build_s3_download_list(snaphots: typing.List[int], s3_uri: str, rule: str) 
     return list(map(lambda item: os.path.join(s3_uri, rule(item)), snaphots))
 
 
+@dataclass(frozen=True)
+class CheckoutJob:
+    s3_uri: str             # S3 URI of folder with data on s3
+    download_path: str      # Path where to download data
+    start_time: int         # Start timestamp of download period
+    end_time: int           # End timestamp of download period
+    period: int             # Period of stored data
+    rule: str               # Rule for creating filename from timestamp
+
+
 class CheckoutExecutor:
     def __init__(self,
                  session: Session,
@@ -83,102 +94,84 @@ class CheckoutExecutor:
 
     def _download_file_impl(self, args):
         uri, file_path = args
-        s3_client = S3Client()
+        s3_client = S3Client.get_client()
         if not s3_client.download_file(s3_uri=uri, file_path=file_path):
             console.log(f"\n[red]Error:[/red] Wasn't able to download {uri}")
 
-    def _download_data(self, s3_uri: str,
-                       download_path: str,
-                       start_time: int,
-                       end_time: int,
-                       period: int,
-                       rule: str):
+    def _download_data(self, checkout_jobs: typing.List[CheckoutJob]):
         """Downloads timestamps of sensors data from s3.
 
         Parameters
         ----------
-        s3_uri : str
-            S3 URI of folder with data on s3
-        download_path : str
-            Path where to download data
-        start_time : int
-            Start timestamp of download period
-        end_time : int
-            End timestamp of download period
-        period : int
-            Period of stored data
-        rule : str
-            Rule for creating filename from timestamp
-        """
-        sensors_timestamps = _build_snapshot_list(
-            start_time=start_time,
-            end_time=end_time,
-            period=period)
+        checkout_jobs : typing.List[CheckoutJob]
+            List of objects containing info about objects to download
 
-        download_uri_list = _build_s3_download_list(
-            snaphots=sensors_timestamps,
-            s3_uri=s3_uri,
-            rule=rule)
+        """
 
         download_jobs = []
-        for uri, timestamp in zip(download_uri_list, sensors_timestamps):
-            _, file_ext = os.path.splitext(uri)
-            file_path = os.path.join(download_path, f"{timestamp}{file_ext}")
-            download_jobs.append((uri, file_path))
+
+        for checkout_job in checkout_jobs:
+
+            console.log(f"Preparing to download data from {checkout_job.s3_uri} to {checkout_job.download_path}")
+
+            sensors_timestamps = _build_snapshot_list(
+                start_time=checkout_job.start_time,
+                end_time=checkout_job.end_time,
+                period=checkout_job.period)
+
+            download_uri_list = _build_s3_download_list(
+                snaphots=sensors_timestamps,
+                s3_uri=checkout_job.s3_uri,
+                rule=checkout_job.rule)
+
+            for uri, timestamp in zip(download_uri_list, sensors_timestamps):
+                _, file_ext = os.path.splitext(uri)
+                file_path = os.path.join(checkout_job.download_path, f"{timestamp}{file_ext}")
+                download_jobs.append((uri, file_path))
+
+            if not os.path.exists(checkout_job.download_path):
+                os.makedirs(checkout_job.download_path, exist_ok=True)
 
         tm = TimeMeasure()
-        console.log(f"Download data from {s3_uri}...")
+        console.log(f"Downloading started: {len(download_jobs)} items prepared for downloading")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             executor.map(self._download_file_impl, download_jobs)
-        console.log(f"Download from {s3_uri} completed in {tm():.2f} seconds...")
 
-    def _checkout_forecasts(self, session: Session, forecasts_sources: typing.List[DataSource]):
-        def _download_forecast(vendor: str, s3_uri: str, data_folder: str, rule: str, period: int = 600):
-            time = format_time(session.start_time - session.forecast_range)
-            console.log(f"[yellow]Download `{vendor}` forecast[/yellow]: [{time}, {format_time(session.end_time)}]")
-            os.makedirs(data_folder, exist_ok=True)
+        console.log(f"Download completed in {tm():.2f} seconds...")
 
-            self._download_data(s3_uri=s3_uri,
-                                download_path=data_folder,
-                                start_time=session.start_time - session.forecast_range,
-                                end_time=session.end_time,
-                                period=period,
-                                rule=rule)
+    def _make_forecast_checkout_jobs(self,
+                                     session: Session,
+                                     forecasts_sources: typing.List[DataSource]) -> typing.List[CheckoutJob]:
 
+        jobs = []
         os.makedirs(session.data_folder, exist_ok=True)
         for source in forecasts_sources:
             if source.s3_uri is not None:
-                _download_forecast(vendor=source.vendor,
-                                   s3_uri=source.s3_uri,
-                                   data_folder=source.data_folder,
-                                   period=source.period,
-                                   rule=source.filename_rule)
+                jobs.append(CheckoutJob(s3_uri=source.s3_uri,
+                                        download_path=source.data_folder,
+                                        start_time=session.start_time - session.forecast_range,
+                                        end_time=session.end_time,
+                                        period=source.period,
+                                        rule=source.filename_rule))
 
-    def _checkout_sensors(self, session: Session, observations_sources: typing.List[DataSource]):
-        def _download_sensors(vendor: str,
-                              s3_uri: str,
-                              data_folder: str,
-                              rule: str,
-                              period: int = 600):
-            time = format_time(session.start_time - AGGREGATION_PERIOD)
-            console.log(f"[yellow]Download `{vendor}` sensors data[/yellow]: [{time}, {format_time(session.end_time)}]")
-            os.makedirs(data_folder, exist_ok=True)
+        return jobs
 
-            self._download_data(s3_uri=s3_uri,
-                                download_path=data_folder,
-                                start_time=session.start_time - AGGREGATION_PERIOD,
-                                end_time=session.end_time,
-                                period=period,
-                                rule=rule)
+    def _make_sensor_checkout_jobs(self,
+                                   session: Session,
+                                   observations_sources: typing.List[DataSource]) -> typing.List[CheckoutJob]:
 
+        jobs = []
         os.makedirs(session.data_folder, exist_ok=True)
         for source in observations_sources:
             if source.s3_uri is not None:
-                _download_sensors(vendor=source.vendor,
-                                  s3_uri=source.s3_uri,
-                                  data_folder=source.data_folder,
-                                  period=source.period,
-                                  rule=source.filename_rule)
+                jobs.append(CheckoutJob(s3_uri=source.s3_uri,
+                                        download_path=source.data_folder,
+                                        start_time=session.start_time - AGGREGATION_PERIOD,
+                                        end_time=session.end_time,
+                                        period=source.period,
+                                        rule=source.filename_rule))
+
+        return jobs
 
     def forecast_sources_list(self, forecasts_info: ForecastSourcesInfo) -> typing.List["DataSource"]:
         return [
@@ -219,10 +212,12 @@ class CheckoutExecutor:
         deadline_timestamp = deadline_timestamp - (deadline_timestamp % 3600)
         self._session.clear_outdated(deadline_timestamp=deadline_timestamp)
 
-        self._checkout_forecasts(session=self._session,
-                                 forecasts_sources=self.forecasts_sources)
-        self._checkout_sensors(session=self._session,
-                               observations_sources=self.observations_sources)
+        checkout_jobs = [*self._make_forecast_checkout_jobs(session=self._session,
+                                                            forecasts_sources=self.forecasts_sources),
+                         *self._make_sensor_checkout_jobs(session=self._session,
+                                                          observations_sources=self.observations_sources)]
+
+        self._download_data(checkout_jobs)
 
         self._session.save_meta()
 

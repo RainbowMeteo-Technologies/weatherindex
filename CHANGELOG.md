@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.4`
+- Optimize checkout job batching and s3 client utilization
+
 ## `0.2.3`
 - Add meteo agencies measurement stations (CHE - FSDI, AUT - GeoSphere, GER - DWD)
 

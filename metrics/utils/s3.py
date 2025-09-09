@@ -3,6 +3,7 @@ import botocore
 import os
 import typing
 
+from functools import lru_cache
 from urllib.parse import urlparse
 
 
@@ -10,6 +11,13 @@ class S3Client:
 
     def __init__(self):
         self._client = boto3.client('s3')
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def get_client():
+        # Safe for use inside of ThreadPoolExecutor
+        # https://boto3.amazonaws.com/v1/documentation/api/1.19.0/guide/clients.html?utm_source=chatgpt.com#multithreading-or-multiprocessing-with-clients
+        return S3Client()
 
     def download_file(self,
                       s3_uri: str,
