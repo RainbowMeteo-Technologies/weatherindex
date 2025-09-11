@@ -102,7 +102,7 @@ class BaseProvider:
         """
         raise NotImplementedError("fetch_job must be implemented by the provider")
 
-    async def _store_file(self, file_path: str, file_content: str):
+    async def _store_file(self, file_path: str, file_content: str | bytes):
         """
         Store the file in the storage.
 

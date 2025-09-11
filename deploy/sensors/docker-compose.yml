@@ -61,3 +61,17 @@ services:
       --download-path ./download/fsdiopendata
       --storage-uri ${S3_URI_FSDIOPENDATA}
       fsdiopendata
+
+  ndbc-downloader:
+    profiles:
+      - ndbc
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/download/ndbc/:/.download/ndbc/
+    command: |
+      python -m sensors
+      --download-path ./download/ndbc
+      --storage-uri ${S3_URI_NDBC}
+      ndbc

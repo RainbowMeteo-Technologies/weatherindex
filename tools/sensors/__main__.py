@@ -7,6 +7,7 @@ from sensors.providers.geosphere import GeoSphereProvider
 from sensors.providers.dwd import DWDProvider
 from sensors.providers.fsdiopendata import FSDIOpenDataProvider
 from sensors.providers.metar import MetarSource
+from sensors.providers.ndbc import NdbcProvider
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
 from sensors.publishers.s3 import S3Publisher
@@ -50,6 +51,12 @@ def _create_fsdiopendata(args: argparse.Namespace):
                                 download_path=args.download_path)
 
 
+def _create_ndbc(args: argparse.Namespace):
+    publisher = _create_publisher(args)
+    return NdbcProvider(publisher=publisher,
+                        download_path=args.download_path)
+
+
 async def main(args: argparse.Namespace):
     provider = args.func(args)
     await provider.run()
@@ -82,6 +89,10 @@ if __name__ == "__main__":
     fsdiopendata_parser = subparser.add_parser("fsdiopendata",
                                                help="Download observations from Switzerland FSDI Open Data")
     fsdiopendata_parser.set_defaults(func=_create_fsdiopendata)
+
+    # NDBC
+    ndbc_parser = subparser.add_parser("ndbc", help="Download observations from National Data Buoy Center")
+    ndbc_parser.set_defaults(func=_create_ndbc)
 
     args = parser.parse_args()
 
