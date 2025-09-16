@@ -8,9 +8,9 @@ import tarfile
 
 from collections import Counter
 from datetime import datetime
-from tools.sensors.utils.http import Http
-from tools.sensors.utils.iterable import batched
-from tools.sensors.providers.provider import BaseProvider
+from sensors.utils.http import Http
+from sensors.utils.iterable import batched
+from sensors.providers.provider import BaseProvider
 from typing_extensions import override
 
 
