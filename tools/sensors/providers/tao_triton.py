@@ -17,11 +17,11 @@ from typing_extensions import override
 DAY_SECONDS = 24 * 60 * 60
 
 
-class NdbcProvider(BaseProvider):
+class TaoTritonProvider(BaseProvider):
 
     def __init__(self, frequency: int = DAY_SECONDS, delay: int = DAY_SECONDS // 2, **kwargs):
-        super().__init__("NDBC", frequency, delay, **kwargs)
-        self._download_batch_size = int(os.getenv("NDBC_DOWNLOAD_BATCH_SIZE", 40))
+        super().__init__("TAO_TRITON", frequency, delay, **kwargs)
+        self._download_batch_size = int(os.getenv("TAO_TRITON_DOWNLOAD_BATCH_SIZE", 40))
 
     @override
     async def fetch_job(self, timestamp: int):

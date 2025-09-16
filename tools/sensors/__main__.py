@@ -7,7 +7,7 @@ from sensors.providers.geosphere import GeoSphereProvider
 from sensors.providers.dwd import DWDProvider
 from sensors.providers.fsdiopendata import FSDIOpenDataProvider
 from sensors.providers.metar import MetarSource
-from sensors.providers.ndbc import NdbcProvider
+from sensors.providers.tao_triton import TaoTritonProvider
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
 from sensors.publishers.s3 import S3Publisher
@@ -51,10 +51,10 @@ def _create_fsdiopendata(args: argparse.Namespace):
                                 download_path=args.download_path)
 
 
-def _create_ndbc(args: argparse.Namespace):
+def _create_tao_triton(args: argparse.Namespace):
     publisher = _create_publisher(args)
-    return NdbcProvider(publisher=publisher,
-                        download_path=args.download_path)
+    return TaoTritonProvider(publisher=publisher,
+                             download_path=args.download_path)
 
 
 async def main(args: argparse.Namespace):
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     fsdiopendata_parser.set_defaults(func=_create_fsdiopendata)
 
     # NDBC
-    ndbc_parser = subparser.add_parser("ndbc", help="Download observations from National Data Buoy Center")
-    ndbc_parser.set_defaults(func=_create_ndbc)
+    tao_triton_parser = subparser.add_parser("tao-triton", help="Download observations from National Data Buoy Center")
+    tao_triton_parser.set_defaults(func=_create_tao_triton)
 
     args = parser.parse_args()
 
