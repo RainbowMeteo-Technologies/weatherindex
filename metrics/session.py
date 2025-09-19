@@ -87,6 +87,10 @@ class Session:
     def metrics_folder(self) -> str:
         return self._metrics_folder
 
+    @property
+    def data_expiration_timestamp(self) -> int:
+        return self.start_time - self.forecast_range
+
     def __repr__(self) -> str:
         return (f"Session {self._path}:\n"
                 f"- start_time: {self._start_time} ({format_time(self._start_time)})\n"
