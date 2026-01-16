@@ -54,7 +54,8 @@ class JobParams:
     threshold: float
     precip_types: typing.List[int]
     session_path: str
-    time_range: typing.Tuple[int, int]
+    observation_time_range: typing.Tuple[int, int]
+    forecast_time_range: typing.Tuple[int, int]
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
@@ -105,13 +106,17 @@ class Worker:
         sensors_path = None
         sensors_path = os.path.join(session.tables_folder, self._params.observation_vendor.value)
 
-        sensors_start_time, sensors_end_time = self._params.time_range
+        sensors_start_time, sensors_end_time = self._params.observation_time_range
         sensors_start_time = sensors_start_time - self._params.group_period
 
         sensors_time_range = (sensors_start_time, sensors_end_time)
 
         collected_sensor_files = self._get_sensor_file_list(sensors_time_range=sensors_time_range,
                                                             sensors_path=sensors_path)
+
+        if len(collected_sensor_files) == 0:
+            console.log("Collected no sensors, aborting..")
+            return None
 
         console.log(f"Load sensors {collected_sensor_files}")
         loaded_tables = []
@@ -146,9 +151,7 @@ class Worker:
         sensor_observations = sensor_observations.sort_values(by=["id", "timestamp"])
         sensor_observations = sensor_observations.drop_duplicates(subset=["id", "timestamp"], keep="first")
 
-        forecast_start_time, forecast_end_time = self._params.time_range
-        # -1:10, to cover begin of observations with 2 hour forecast
-        forecast_start_time = forecast_start_time - (max(self._params.forecast_offsets) + 4200)
+        forecast_start_time, forecast_end_time = self._params.forecast_time_range
 
         console.log(f"Loading forecast in range ({forecast_start_time}, {forecast_end_time})...")
 
@@ -156,7 +159,7 @@ class Worker:
         forecast = data_provider.load_forecast(time_rage=(forecast_start_time, forecast_end_time),
                                                sensors_table=sensor_observations)
 
-        console.log(f"Calculating metrics for {self._params.time_range}...")
+        console.log(f"Calculating metrics for {self._params.forecast_time_range}...")
         return self._calculate(forecast_times=self._params.forecast_offsets,
                                observations=sensor_observations,
                                forecast=forecast)
@@ -359,37 +362,66 @@ class CalculateMetrics:
         # - split session time by 1 hour ranges
         # - calculate metrics for each 1 hour range
 
-        start_time, end_time = self._calc_sensors_range()
+        observation_start_time, observation_end_time = self._calc_sensors_range()
+
+        # -1:10, to cover begin of observations with 2 hour forecast
+        # start_time = start_time - (max(self._forecast_offsets) + 4200)
+        forecast_start_time = observation_start_time - (max(self._forecast_offsets) + 4200)
+        forecast_end_time = observation_end_time
+
+        console.log(self._forecast_offsets)
+        # console.log(start_time, end_time, self._split_time_range)
 
         jobs = []
-        for timestamp in range(start_time, end_time, self._split_time_range):
-            jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
-                                  observation_vendor=self._observation_vendor,
-                                  forecast_offsets=self._forecast_offsets,
-                                  session_path=self._session_path,
-                                  time_range=(timestamp, timestamp + self._split_time_range),
-                                  sensor_ids=selected_sensors_ids,
-                                  threshold=self._threshold,
-                                  precip_types=[precip_type.value for precip_type in self._precip_types],
-                                  observations_offset=self._observations_offset,
-                                  group_period=self._group_period,
-                                  forecast_manager_cls=self._forecast_manager_cls))
+        for timestamp in range(forecast_start_time, forecast_end_time, self._split_time_range):
+            for range_start in range(timestamp, timestamp + self._split_time_range, 600):
+                jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
+                                      observation_vendor=self._observation_vendor,
+                                      forecast_offsets=self._forecast_offsets,
+                                      session_path=self._session_path,
+                                      observation_time_range=(observation_start_time,
+                                                              observation_start_time + self._split_time_range),
+                                      forecast_time_range=(range_start, range_start + 600 - 1),
+                                      sensor_ids=selected_sensors_ids,
+                                      threshold=self._threshold,
+                                      precip_types=[precip_type.value for precip_type in self._precip_types],
+                                      observations_offset=self._observations_offset,
+                                      group_period=self._group_period,
+                                      forecast_manager_cls=self._forecast_manager_cls))
 
         final_metrics: pandas.DataFrame = pandas.DataFrame()
-        pool_ctx = multiprocessing.get_context("spawn")
-        with pool_ctx.Pool(processes=process_num) as pool:
+
+        processed_frames: list[pandas.DataFrame] = []
+        with multiprocessing.get_context("spawn").Pool(processes=process_num) as pool:
             for m in tqdm(pool.imap_unordered(_process_time_range, jobs),
                           desc="Calculating metrics...",
                           ascii=True,
                           total=len(jobs)):
-                final_metrics = concat_frames(frames=[final_metrics, m],
-                                              columns=["id",
-                                                       "timestamp", "forecast_time",
-                                                       "precip_type_status_forecast", "precip_rate_forecast",
-                                                       "precip_type_status_observations", "precip_rate_observations",
-                                                       "forecasted_precip", "observed_precip",
-                                                       "tp", "fp", "tn", "fn"])
-                final_metrics.to_csv(output_csv, index=False)
+                processed_frames.append(m)
+
+        final_metrics = concat_frames(frames=processed_frames,
+                                      columns=["id",
+                                               "timestamp", "forecast_time",
+                                               "precip_type_status_forecast", "precip_rate_forecast",
+                                               "precip_type_status_observations", "precip_rate_observations",
+                                               "forecasted_precip", "observed_precip",
+                                               "tp", "fp", "tn", "fn"])
+
+        final_metrics.to_csv(output_csv, index=False)
+
+        # with pool_ctx.Pool(processes=process_num) as pool:
+        #     for m in tqdm(pool.imap_unordered(_process_time_range, jobs),
+        #                   desc="Calculating metrics...",
+        #                   ascii=True,
+        #                   total=len(jobs)):
+        #         final_metrics = concat_frames(frames=[final_metrics, m],
+        #                                       columns=["id",
+        #                                                "timestamp", "forecast_time",
+        #                                                "precip_type_status_forecast", "precip_rate_forecast",
+        #                                                "precip_type_status_observations", "precip_rate_observations",
+        #                                                "forecasted_precip", "observed_precip",
+        #                                                "tp", "fp", "tn", "fn"])
+        #         final_metrics.to_csv(output_csv, index=False)
 
         return final_metrics
 
