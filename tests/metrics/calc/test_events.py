@@ -1,5 +1,3 @@
-from itertools import product
-import numpy as np
 import os
 import pandas
 import pytest
@@ -7,7 +5,7 @@ import typing
 
 from metrics.calc.events import CalculateMetrics, JobParams, Worker
 from metrics.calc.forecast_manager import ForecastManager
-from metrics.data_vendor import BaseDataVendor, DataVendor
+from metrics.data_vendor import DataVendor
 from metrics.session import Session
 from metrics.utils.metric import precision, recall, fscore
 from metrics.utils.precipitation import PrecipitationType
@@ -38,6 +36,7 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                    threshold: float = 0,
                    precip_types: typing.List[PrecipitationType] = [PrecipitationType.RAIN],
                    session_path: str = "test",
+                   forecast_time_range: typing.Tuple[int, int] = (10800, 14400),
                    sensors_time_range: typing.Tuple[int, int] = (10800, 14400),
                    forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager) -> Worker:
     return Worker(params=JobParams(forecast_vendor=forecast_vendor,
@@ -47,7 +46,8 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                                    threshold=threshold,
                                    precip_types=[precip_type.value for precip_type in precip_types],
                                    session_path=session_path,
-                                   time_range=sensors_time_range,
+                                   observation_time_range=forecast_time_range,
+                                   forecast_time_range=sensors_time_range,
                                    forecast_manager_cls=forecast_manager_cls))
 
 

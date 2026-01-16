@@ -11,10 +11,9 @@ from metrics.session import Session
 from metrics.utils.frame import concat_frames
 from metrics.utils.precipitation import PrecipitationType
 from metrics.utils.time import floor_timestamp
-
 from rich.console import Console
-
 from tqdm import tqdm
+
 
 console = Console()
 
@@ -365,12 +364,8 @@ class CalculateMetrics:
         observation_start_time, observation_end_time = self._calc_sensors_range()
 
         # -1:10, to cover begin of observations with 2 hour forecast
-        # start_time = start_time - (max(self._forecast_offsets) + 4200)
         forecast_start_time = observation_start_time - (max(self._forecast_offsets) + 4200)
         forecast_end_time = observation_end_time
-
-        console.log(self._forecast_offsets)
-        # console.log(start_time, end_time, self._split_time_range)
 
         jobs = []
         for timestamp in range(forecast_start_time, forecast_end_time, self._split_time_range):
@@ -408,20 +403,6 @@ class CalculateMetrics:
                                                "tp", "fp", "tn", "fn"])
 
         final_metrics.to_csv(output_csv, index=False)
-
-        # with pool_ctx.Pool(processes=process_num) as pool:
-        #     for m in tqdm(pool.imap_unordered(_process_time_range, jobs),
-        #                   desc="Calculating metrics...",
-        #                   ascii=True,
-        #                   total=len(jobs)):
-        #         final_metrics = concat_frames(frames=[final_metrics, m],
-        #                                       columns=["id",
-        #                                                "timestamp", "forecast_time",
-        #                                                "precip_type_status_forecast", "precip_rate_forecast",
-        #                                                "precip_type_status_observations", "precip_rate_observations",
-        #                                                "forecasted_precip", "observed_precip",
-        #                                                "tp", "fp", "tn", "fn"])
-        #         final_metrics.to_csv(output_csv, index=False)
 
         return final_metrics
 
