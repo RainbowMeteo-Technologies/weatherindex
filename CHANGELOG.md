@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.5`
+- Allow collection of calculation jobs instead of immediately running them 
+
 ## `0.2.4`
 - Optimize checkout job batching and s3 client utilization
 
