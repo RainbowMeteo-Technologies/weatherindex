@@ -1,20 +1,23 @@
+import functools
 import multiprocessing
 import numpy as np
 import os
 import pandas
+import shutil
 import typing
+import uuid
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from metrics.calc.forecast_manager import ForecastManager, DataVendor
+from metrics.calc.forecast_manager import DataVendor, ForecastManager
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
 from metrics.utils.precipitation import PrecipitationType
 from metrics.utils.time import floor_timestamp
-
 from rich.console import Console
-
 from tqdm import tqdm
+
 
 console = Console()
 
@@ -55,6 +58,7 @@ class JobParams:
     precip_types: typing.List[int]
     session_path: str
     time_range: typing.Tuple[int, int]
+    output_path: str
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
@@ -93,7 +97,7 @@ class Worker:
 
         return [os.path.join(sensors_path, file_name) for file_name in filtered_files]
 
-    def run(self) -> pandas.DataFrame:
+    def run(self) -> None:
         """Runs metrics calculation
 
         Returns
@@ -157,9 +161,19 @@ class Worker:
                                                sensors_table=sensor_observations)
 
         console.log(f"Calculating metrics for {self._params.time_range}...")
-        return self._calculate(forecast_times=self._params.forecast_offsets,
-                               observations=sensor_observations,
-                               forecast=forecast)
+
+        calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
+                                           observations=sensor_observations,
+                                           forecast=forecast)
+
+        self._dump_frame(calculated_frame)
+
+    def _dump_frame(self, frame: pandas.DataFrame):
+
+        os.makedirs(self._params.output_path, exist_ok=True)
+        frame.to_csv(os.path.join(self._params.output_path,
+                                  f"{uuid.uuid4().hex}.csv"),
+                     index=False)
 
     def _align_time_column(self, data: pandas.DataFrame,
                            column_name: str,
@@ -342,15 +356,7 @@ class CalculateMetrics:
 
         return (start_time, end_time)
 
-    def calculate(self, output_csv: str, process_num: int = 1) -> pandas.DataFrame:
-        """
-        Parameters
-        ----------
-        output_csv : str
-            Path to the output CSV file
-        process_num : int
-            Number of parallel processes to run
-        """
+    def collect_jobs(self, output_path: str) -> typing.List[typing.Callable[[], None]]:
         selected_sensors = read_selected_sensors(self._sensor_selection_path)
         selected_sensors = selected_sensors.drop_duplicates(subset=["id"], keep="first")
         selected_sensors_ids = selected_sensors["id"].unique()
@@ -373,25 +379,43 @@ class CalculateMetrics:
                                   precip_types=[precip_type.value for precip_type in self._precip_types],
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
-                                  forecast_manager_cls=self._forecast_manager_cls))
+                                  forecast_manager_cls=self._forecast_manager_cls,
+                                  output_path=output_path))
 
-        final_metrics: pandas.DataFrame = pandas.DataFrame()
-        pool_ctx = multiprocessing.get_context("spawn")
-        with pool_ctx.Pool(processes=process_num) as pool:
-            for m in tqdm(pool.imap_unordered(_process_time_range, jobs),
+        return [functools.partial(_process_time_range, params=job) for job in jobs]
+
+    def calculate(self, output_csv: str, process_num: int = 1) -> None:
+        output_path = os.path.join(os.path.dirname(output_csv),
+                                   f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
+
+        with ProcessPoolExecutor(max_workers=process_num,
+                                 mp_context=multiprocessing.get_context("spawn")) as executor:
+            futures = [executor.submit(job) for job in self.collect_jobs(output_path)]
+            for _ in tqdm(as_completed(futures),
+                          total=len(futures),
                           desc="Calculating metrics...",
-                          ascii=True,
-                          total=len(jobs)):
-                final_metrics = concat_frames(frames=[final_metrics, m],
-                                              columns=["id",
+                          ascii=True):
+                pass
+
+        frames = []
+        for filename in os.listdir(output_path):
+            if filename.endswith(".csv"):
+                frames.append(pandas.read_csv(os.path.join(output_path, filename)))
+
+        if len(frames) == 0:
+            console.log(f"Found no frames at {output_path}")
+
+        final_metrics = concat_frames(frames, columns=["id",
                                                        "timestamp", "forecast_time",
-                                                       "precip_type_status_forecast", "precip_rate_forecast",
-                                                       "precip_type_status_observations", "precip_rate_observations",
+                                                       "precip_type_status_forecast",
+                                                       "precip_rate_forecast",
+                                                       "precip_type_status_observations",
+                                                       "precip_rate_observations",
                                                        "forecasted_precip", "observed_precip",
                                                        "tp", "fp", "tn", "fn"])
-                final_metrics.to_csv(output_csv, index=False)
+        final_metrics.to_csv(output_csv, index=False)
 
-        return final_metrics
+        shutil.rmtree(output_path, ignore_errors=True)
 
 
 def calc_events(session_path: str,

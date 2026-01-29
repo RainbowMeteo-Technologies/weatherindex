@@ -1,13 +1,12 @@
-from itertools import product
-import numpy as np
 import os
+import functools
 import pandas
 import pytest
 import typing
 
 from metrics.calc.events import CalculateMetrics, JobParams, Worker
 from metrics.calc.forecast_manager import ForecastManager
-from metrics.data_vendor import BaseDataVendor, DataVendor
+from metrics.data_vendor import DataVendor
 from metrics.session import Session
 from metrics.utils.metric import precision, recall, fscore
 from metrics.utils.precipitation import PrecipitationType
@@ -48,7 +47,8 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                                    precip_types=[precip_type.value for precip_type in precip_types],
                                    session_path=session_path,
                                    time_range=sensors_time_range,
-                                   forecast_manager_cls=forecast_manager_cls))
+                                   forecast_manager_cls=forecast_manager_cls,
+                                   output_path="test-output"))
 
 
 def _create_observations(data: typing.List[any]) -> pandas.DataFrame:
@@ -93,7 +93,11 @@ class TestWorker:
         forecast_manager_mock.load_forecast.side_effect = [pandas.DataFrame(columns=forecast_columns),
                                                            pandas.DataFrame(columns=forecast_columns)]
 
+        worker._dump_frame = MagicMock()
+
         worker.run()
+
+        worker._dump_frame.assert_called_once()
 
     @pytest.mark.parametrize("files_list, time_range, expected_files_list", [
         (
@@ -568,7 +572,7 @@ class TestCalculateMetrics:
     ])
     @patch("metrics.session.Session.create_from_folder")
     def test_calc_sensors_range(self,
-                                mock_session_create: any,
+                                mock_session_create: typing.Any,
                                 session_time_range: typing.Tuple[int, int],
                                 expected_time_range: typing.Tuple[int, int]):
 
@@ -579,3 +583,19 @@ class TestCalculateMetrics:
         calc = _create_calculate_metrics()
 
         assert calc._calc_sensors_range() == expected_time_range
+
+    @patch("metrics.calc.events.read_selected_sensors", return_value=pandas.DataFrame({"id": ["S0", "S1", "S2"]}))
+    @patch("metrics.session.Session.create_from_folder", return_value=Session(session_path="session_path",
+                                                                              start_time=0,
+                                                                              end_time=3600))
+    def test_collect_jobs(self, mock_session_create, mock_read_sensors):
+        calc = _create_calculate_metrics()
+
+        collected_jobs = calc.collect_jobs("output_path")
+
+        assert len(collected_jobs) > 0
+
+        for job in collected_jobs:
+            assert isinstance(job, functools.partial)
+            assert set(job.keywords) == set(["params"])
+            assert job.args == ()
