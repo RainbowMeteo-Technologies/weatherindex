@@ -6,19 +6,11 @@ from metrics.calc.forecast.provider import ForecastProvider
 from metrics.io.tile_loader import BaseTileLoader
 from metrics.io.tile_reader import TileReader
 from metrics.utils.coords import Coordinate
-from metrics.utils.dbz import dbz_to_precipitation_rate
-from metrics.utils.precipitation import PrecipitationType
 
 
 class TileProvider(ForecastProvider):
     """Provider implementation for a tile data
     """
-
-    RAIN_RATE_CONVERT_A: float = 200
-    RAIN_RATE_CONVERT_B: float = 1.6
-
-    SNOW_RATE_CONVERT_A: float = 200
-    SNOW_RATE_CONVERT_B: float = 2.0
 
     def __init__(self,
                  snapshots_path: str,
@@ -54,24 +46,6 @@ class TileProvider(ForecastProvider):
         """
         return self._snapshot_timestamp
 
-    @staticmethod
-    def dbz_to_precipitation_rate(dbz: int, precip_type: PrecipitationType):
-        rain_mmh = dbz_to_precipitation_rate(dbz=dbz,
-                                             a=TileProvider.RAIN_RATE_CONVERT_A,
-                                             b=TileProvider.RAIN_RATE_CONVERT_B)
-        snow_mmh = dbz_to_precipitation_rate(dbz=dbz,
-                                             a=TileProvider.SNOW_RATE_CONVERT_A,
-                                             b=TileProvider.SNOW_RATE_CONVERT_B)
-
-        if precip_type == PrecipitationType.RAIN:
-            return rain_mmh
-        elif precip_type == PrecipitationType.SNOW:
-            return snow_mmh
-        elif precip_type == PrecipitationType.MIX:
-            return max(rain_mmh, snow_mmh)
-
-        return dbz
-
     def load(self, sensors_table: pandas.DataFrame) -> typing.Optional[pandas.DataFrame]:
         result_data = []
 
@@ -86,11 +60,10 @@ class TileProvider(ForecastProvider):
                         offset=forecast_time // 60)
 
                     if precip_value is not None and precip_value.dbz is not None:
-                        precip_rate = TileProvider.dbz_to_precipitation_rate(dbz=precip_value.dbz,
-                                                                             precip_type=precip_value.precip_type)
+
                         result_data.append([
                             sensor.id,
-                            precip_rate,
+                            precip_value.to_mmh(),
                             precip_value.precip_type.value,
                             self._snapshot_timestamp + forecast_time])
 
