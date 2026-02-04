@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.6`
+- Refactor extracting of precipitation values from tile provider
+
 ## `0.2.5`
 - Allow collection of calculation jobs instead of immediately running them 
 

@@ -1,11 +1,11 @@
-import numpy as np
 import mercantile
+import numpy as np
 import pytest
 import typing
 
-from metrics.io.tile_reader import TileReader, PrecipValue
+from metrics.io.tile_reader import TileReader
 from metrics.utils.coords import Coordinate, PixelCoordinate
-from metrics.utils.precipitation import PrecipitationType, PrecipitationData
+from metrics.utils.precipitation import PrecipitationData, PrecipitationType, PrecipValue
 from unittest.mock import MagicMock
 
 

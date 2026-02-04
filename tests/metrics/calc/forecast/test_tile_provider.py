@@ -2,13 +2,10 @@ import pandas
 import pytest
 import typing
 
-from metrics.utils.coords import Coordinate
-from metrics.utils.precipitation import PrecipitationType
-
 from metrics.calc.forecast.tile_provider import TileProvider
 from metrics.io.tile_loader import BaseTileLoader
-from metrics.io.tile_reader import PrecipValue
-
+from metrics.utils.coords import Coordinate
+from metrics.utils.precipitation import PrecipitationType, PrecipValue
 from unittest.mock import Mock
 
 
@@ -71,16 +68,3 @@ class TestTileProvider:
         pandas.testing.assert_frame_equal(result.reset_index(drop=True),
                                           expected_data.reset_index(drop=True),
                                           check_like=True)
-
-    @pytest.mark.parametrize("precip_type, dbz, expected_precipitation_rate", [
-        (PrecipitationType.RAIN, 10, 0.153765),
-        (PrecipitationType.SNOW, 10, 0.223606),
-        (PrecipitationType.MIX, 10, 0.223606),
-    ])
-    def test_dbz_to_precipitation_rate(self,
-                                       precip_type: PrecipitationType,
-                                       dbz: float,
-                                       expected_precipitation_rate: float):
-        precip_rate = TileProvider.dbz_to_precipitation_rate(dbz=dbz, precip_type=precip_type)
-        approx_precip_rate = pytest.approx(precip_rate, abs=1e-6)
-        assert approx_precip_rate == expected_precipitation_rate

@@ -1,20 +1,9 @@
 import mercantile
-import numpy as np
 import typing
 
-from dataclasses import dataclass
 from metrics.io.tile_loader import BaseTileLoader
 from metrics.utils.coords import Coordinate, PixelCoordinate
-from metrics.utils.precipitation import PrecipitationType
-
-
-@dataclass
-class PrecipValue:
-    dbz: typing.Optional[float]  # dbz value
-    precip_type: PrecipitationType  # precipitation type
-
-    def is_rain(self) -> bool:
-        return self.precip_type == PrecipitationType.RAIN
+from metrics.utils.precipitation import PrecipitationType, PrecipValue
 
 
 class TileReader:
@@ -72,8 +61,4 @@ class TileReader:
         if data is None:
             return PrecipValue(dbz=None, precip_type=PrecipitationType.UNKNOWN)
 
-        dbz = data.reflectivity[py, px]
-        if np.isnan(dbz):
-            dbz = None
-        precip_type = PrecipitationType(data.type[py, px])
-        return PrecipValue(dbz=dbz, precip_type=precip_type)
+        return data.get_point(py, px)
