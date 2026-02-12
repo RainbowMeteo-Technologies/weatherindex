@@ -12,4 +12,9 @@ class Rainbow(BaseForecastInPointProvider, RequestInterface):
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
         url = f"https://api.rainbow.ai/nowcast/v1/precip/{lon}/{lat}?token={self.token}"
-        return await self._native_get(url=url)
+        resp = await self._native_get(url=url)
+
+        if resp.ok and len(resp.payload) == 0:
+            resp.set_failed()
+
+        return resp
