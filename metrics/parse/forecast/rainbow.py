@@ -1,11 +1,13 @@
 import json
 import os
 
+from metrics.parse.base_parser import BaseParser
+from metrics.utils.precipitation import PrecipitationType
+from rich.console import Console
 from typing import List
 
-from metrics.parse.base_parser import BaseParser
 
-from metrics.utils.precipitation import PrecipitationType
+console = Console()
 
 
 def _convert_precip_type(precip_type: str) -> PrecipitationType:
@@ -24,21 +26,27 @@ class RainbowAiParser(BaseParser):
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
         rows = []
 
-        data_json = json.loads(data)
-        sensor_id = os.path.basename(file_name).replace(".json", "")
+        try:
+            data_json = json.loads(data)
 
-        lon = data_json["longitude"]
-        lat = data_json["latitude"]
+        except Exception as ex:
+            console.log(f"Failed to load forecast from {file_name}: {ex}")
 
-        forecasts = data_json["forecast"]
+        else:
+            sensor_id = os.path.basename(file_name).replace(".json", "")
 
-        for forecast in forecasts:
-            timestamp = forecast["timestampEnd"]
-            precip_rate = forecast["precipRate"]
-            precip_type = _convert_precip_type(forecast["precipType"])
-            precip_prob = 1.0
+            lon = data_json["longitude"]
+            lat = data_json["latitude"]
 
-            rows.append((sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type.value))
+            forecasts = data_json["forecast"]
+
+            for forecast in forecasts:
+                timestamp = forecast["timestampEnd"]
+                precip_rate = forecast["precipRate"]
+                precip_type = _convert_precip_type(forecast["precipType"])
+                precip_prob = 1.0
+
+                rows.append((sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type.value))
 
         return rows
 
