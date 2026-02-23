@@ -9,7 +9,18 @@ from typing import BinaryIO
 from typing_extensions import override  # for python <3.12
 
 
-WK_FORECAST_TYPES = ["hour", "day"]
+WK_FORECAST_TYPES = ["hour", "day", "week"]
+
+
+def datasets_from_forecast_types(forecast_types: list[str]) -> list[str]:
+    datasets = []
+    if "hour" in forecast_types:
+        datasets.append("forecastNextHour")
+    if "day" in forecast_types:
+        datasets.append("forecastHourly")
+    if "week" in forecast_types:
+        datasets.append("forecastDaily")
+    return datasets
 
 
 @dataclass(frozen=True)
@@ -69,13 +80,11 @@ class Token:
 
 
 class WeatherKit(BaseForecastInPointProvider, RequestInterface):
-    def __init__(self, config_path: str, forecast_type: str, *args, **kwargs):
+    def __init__(self, config_path: str, forecast_types: list[str], *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if forecast_type == "hour":
-            self.datasets = "forecastNextHour"
-        elif forecast_type == "day":
-            self.datasets = "currentWeather,forecastHourly"
+        datasets = datasets_from_forecast_types(forecast_types)
+        self.datasets = ",".join(datasets)
 
         self.config_path = config_path
         self.token = None

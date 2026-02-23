@@ -41,7 +41,7 @@ def _create_wk(args: argparse.Namespace) -> WeatherKit:
                       chunk_size=args.chunk_size,
                       frequency=args.download_period,
                       config_path=args.config_path,
-                      forecast_type=args.forecast_type,
+                      forecast_types=args.forecast_types,
                       sensors=sensors)
 
 
@@ -211,8 +211,9 @@ if __name__ == "__main__":
     _add_sensors_params(wk_parser)
     wk_parser.add_argument("--config-path", type=str, required=True,
                            help="Path to the token configuration file")
-    wk_parser.add_argument("--forecast-type", type=str, dest="forecast_type", default="hour", choices=WK_FORECAST_TYPES,
-                           help=f"Forecast type. One value of {WK_FORECAST_TYPES}")
+    wk_parser.add_argument("--forecast-types", type=str, dest="forecast_types",
+                           default=["hour"], nargs="+", choices=WK_FORECAST_TYPES,
+                           help=f"Forecast types. Values of {WK_FORECAST_TYPES}")
 
     wk_parser.set_defaults(func=_create_wk)
 
