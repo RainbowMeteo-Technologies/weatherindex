@@ -180,7 +180,8 @@ def _process_sensor_chunk(sensors: list[Sensor],
 
                 with open(os.path.join(download_path, f"{sensor.id}.json"), file_mode) as f:
                     f.write(resp.payload)
-            except Exception:
+            except Exception as ex:
+                console.log(f"Failed to process sensor {sensor.id}: {ex}")
                 resp.set_failed()
                 return resp
 
