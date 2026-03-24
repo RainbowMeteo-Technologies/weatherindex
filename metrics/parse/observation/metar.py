@@ -52,28 +52,31 @@ class MetarParser(BaseParser):
     def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
 
+        WeatherTuple = tuple[str | None,  # intensity
+                             str | None,  # descriptor
+                             str | None,  # precipitation
+                             str | None,  # obscuration
+                             str | None,] # other
+
         # Weather codes taken from here: https://www.weather.gov/media/wrh/mesowest/metar_decode_key.pdf
-        def _is_rain(codes: str) -> bool:
-            has_rain = False
+        def _split_precip_atoms(precip: str | None) -> list[str]:
+            # In METAR, precipitation atoms are encoded as 2-char chunks (RA, SN, DZ, ...),
+            if not precip:
+                return []
+            return [precip[i:i + 2] for i in range(0, len(precip), 2)]
 
-            # low drizzle
-            if "-" in codes and "DZ" in codes:
-                return has_rain
+        def _is_rain(weather: WeatherTuple) -> bool:
+            intensity, _descriptor, precipitation, _obscuration, _other = weather
+            atoms = _split_precip_atoms(precipitation)
 
-            rain_codes = ["DZ", "RA", "GR"]
-            for code in codes:
-                has_rain = has_rain or (code in rain_codes)
+            rain_codes = {"DZ", "RA", "GR", "GS"}
+            return any(atom in rain_codes for atom in atoms)
 
-            return has_rain
-
-        def _is_snow(codes: str) -> bool:
-            has_snow = False
-
-            snow_codes = ["SN", "GS", "SG", "SNINCR", "SP", "SW", "S"]
-            for code in codes:
-                has_snow = has_snow or (code in snow_codes)
-
-            return has_snow
+        def _is_snow(weather: WeatherTuple) -> bool:
+            _intensity, _descriptor, precipitation, _obscuration, _other = weather
+            atoms = _split_precip_atoms(precipitation)
+            snow_codes = {"SN", "GR", "GS", "SG", "IC", "PL"}
+            return any(atom in snow_codes for atom in atoms)
 
         def _should_skip_report(report: str) -> bool:
             skip_criteria = ["RAB" in report,       # report with time offset
