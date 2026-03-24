@@ -52,11 +52,11 @@ class MetarParser(BaseParser):
     def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
 
-        WeatherTuple = tuple[str | None,  # intensity
-                             str | None,  # descriptor
-                             str | None,  # precipitation
-                             str | None,  # obscuration
-                             str | None,] # other
+        WeatherTuple = tuple[str | None,   # intensity
+                             str | None,   # descriptor
+                             str | None,   # precipitation
+                             str | None,   # obscuration
+                             str | None,]  # other
 
         # Weather codes taken from here: https://www.weather.gov/media/wrh/mesowest/metar_decode_key.pdf
         def _split_precip_atoms(precip: str | None) -> list[str]:

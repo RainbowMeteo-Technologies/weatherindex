@@ -194,25 +194,25 @@ class TestMetarParser:
         ),
         # hail
         (
-                _create_metar_file(raw_text="TJBQ 251150Z 00000KT 10SM GR 25/21 A2990",
-                                   station_id="TJBQ",
-                                   observation_time="2024-03-25T11:50:00Z",
-                                   lat=18.494,
-                                   lon=-67.128,
-                                   temp_c=25.4,
-                                   dew_point=21,
-                                   wind_dir_degrees=5.4,
-                                   wind_speed_kt=23.0,
-                                   sky_condition=['<sky_condition sky_cover="SCT" cloud_base_ft_agl="1000" />',
-                                                  '<sky_condition sky_cover="BKN" cloud_base_ft_agl="1500" />']),
-                1725667200,
+            _create_metar_file(raw_text="TJBQ 251150Z 00000KT 10SM GR 25/21 A2990",
+                               station_id="TJBQ",
+                               observation_time="2024-03-25T11:50:00Z",
+                               lat=18.494,
+                               lon=-67.128,
+                               temp_c=25.4,
+                               dew_point=21,
+                               wind_dir_degrees=5.4,
+                               wind_speed_kt=23.0,
+                               sky_condition=['<sky_condition sky_cover="SCT" cloud_base_ft_agl="1000" />',
+                                              '<sky_condition sky_cover="BKN" cloud_base_ft_agl="1500" />']),
+            1725667200,
 
-                # ["id", "lon", "lat", "timestamp", "precip_rate", "precip_type", "px", "py", "tile_x", "tile_y",
-                # "sky_condition"]
-                [
-                    ["TJBQ", -67.128, 18.494, 1711367400, 10.0, PrecipitationType.MIX.value, 33, 78, 40, 57,
-                     [(SkyCover.SCT.value, 1000), (SkyCover.BKN.value, 1500)]]
-                ]
+            # ["id", "lon", "lat", "timestamp", "precip_rate", "precip_type", "px", "py", "tile_x", "tile_y",
+            # "sky_condition"]
+            [
+                ["TJBQ", -67.128, 18.494, 1711367400, 10.0, PrecipitationType.MIX.value, 33, 78, 40, 57,
+                 [(SkyCover.SCT.value, 1000), (SkyCover.BKN.value, 1500)]]
+            ]
         )
     ])
     @patch("metrics.parse.observation.metar.to_date")
