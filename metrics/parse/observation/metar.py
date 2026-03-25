@@ -82,7 +82,7 @@ class WeatherCondition:
 
 class MetarParser(BaseParser):
 
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[typing.Any]]:
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
 
         def _should_skip_report(report: str) -> bool:
@@ -137,8 +137,9 @@ class MetarParser(BaseParser):
                     # console.log(f"AttributeError while parsing file {file_name}: {ex}")
                     continue
 
-                has_rain = any(WeatherCondition.from_tuple(code).is_rain() for code in metar.weather)
-                has_snow = any(WeatherCondition.from_tuple(code).is_snow() for code in metar.weather)
+                reports = [WeatherCondition.from_tuple(code) for code in metar.weather]
+                has_rain = any(report.is_rain() for report in reports)
+                has_snow = any(report.is_snow() for report in reports)
 
                 pixel = coord_to_tile_pixel(coord=Coordinate(lon=lon, lat=lat),
                                             zoom_level=ZOOM_LEVEL,
