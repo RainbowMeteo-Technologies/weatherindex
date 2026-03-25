@@ -2,6 +2,7 @@ import datetime
 import typing
 import xml.etree.ElementTree as xml
 
+from dataclasses import dataclass
 from enum import IntEnum
 
 from metar import Metar
@@ -47,36 +48,44 @@ class SkyCover(IntEnum):
     OVX = 7       # Obscured (sky hidden, treated as fully covered)
 
 
+@dataclass
+class WeatherCondition:
+    intensity: str | None
+    descriptor: str | None
+    precipitation: str | None
+    obscuration: str | None
+    other: str | None
+
+    @staticmethod
+    def from_tuple(weather_tuple: tuple[str | None,...]) -> "WeatherCondition":
+        intensity, descriptor, precipitation, obscuration, other = weather_tuple
+        return WeatherCondition(intensity, descriptor, precipitation, obscuration, other)
+
+    def _split_precip_atoms(self, precip: str | None) -> list[str]:
+        # In METAR, precipitation atoms are encoded as 2-char chunks (RA, SN, DZ, ...),
+        if not precip:
+            return []
+        return [precip[i:i + 2] for i in range(0, len(precip), 2)]
+
+    # Weather codes taken from here: https://www.weather.gov/media/wrh/mesowest/metar_decode_key.pdf
+    def is_rain(self) -> bool:
+        atoms = self._split_precip_atoms(self.precipitation)
+
+        rain_codes = {"DZ", "RA", "GR", "GS"}
+        return any(atom in rain_codes for atom in atoms)
+
+
+    def is_snow(self) -> bool:
+        atoms = self._split_precip_atoms(self.precipitation)
+        snow_codes = {"SN", "GR", "GS", "SG", "IC", "PL"}
+        return any(atom in snow_codes for atom in atoms)
+
+
+
 class MetarParser(BaseParser):
 
     def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
-
-        WeatherTuple = tuple[str | None,   # intensity
-                             str | None,   # descriptor
-                             str | None,   # precipitation
-                             str | None,   # obscuration
-                             str | None,]  # other
-
-        # Weather codes taken from here: https://www.weather.gov/media/wrh/mesowest/metar_decode_key.pdf
-        def _split_precip_atoms(precip: str | None) -> list[str]:
-            # In METAR, precipitation atoms are encoded as 2-char chunks (RA, SN, DZ, ...),
-            if not precip:
-                return []
-            return [precip[i:i + 2] for i in range(0, len(precip), 2)]
-
-        def _is_rain(weather: WeatherTuple) -> bool:
-            intensity, _descriptor, precipitation, _obscuration, _other = weather
-            atoms = _split_precip_atoms(precipitation)
-
-            rain_codes = {"DZ", "RA", "GR", "GS"}
-            return any(atom in rain_codes for atom in atoms)
-
-        def _is_snow(weather: WeatherTuple) -> bool:
-            _intensity, _descriptor, precipitation, _obscuration, _other = weather
-            atoms = _split_precip_atoms(precipitation)
-            snow_codes = {"SN", "GR", "GS", "SG", "IC", "PL"}
-            return any(atom in snow_codes for atom in atoms)
 
         def _should_skip_report(report: str) -> bool:
             skip_criteria = ["RAB" in report,       # report with time offset
@@ -130,8 +139,8 @@ class MetarParser(BaseParser):
                     # console.log(f"AttributeError while parsing file {file_name}: {ex}")
                     continue
 
-                has_rain = any(_is_rain(code) for code in metar.weather)
-                has_snow = any(_is_snow(code) for code in metar.weather)
+                has_rain = any(WeatherCondition.from_tuple(code).is_rain() for code in metar.weather)
+                has_snow = any(WeatherCondition.from_tuple(code).is_snow() for code in metar.weather)
 
                 pixel = coord_to_tile_pixel(coord=Coordinate(lon=lon, lat=lat),
                                             zoom_level=ZOOM_LEVEL,
