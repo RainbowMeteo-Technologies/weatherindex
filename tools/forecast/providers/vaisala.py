@@ -20,41 +20,35 @@ class Vaisala(BaseForecastInPointProvider, RequestInterface):
         self.client_secret = client_secret
 
     async def rate_limit_aware_get(self, url: str) -> Response:
-        try:
-            resp = Response()
+        # https://www.xweather.com/docs/weather-api/getting-started/rate-limiting
+        resp = Response()
 
-            while not resp.ok:
-                resp = await self._native_get(url=url)
+        while not resp.ok:
+            resp = await self._native_get(url=url)
 
-                if resp.ok:
-                    return resp
+            if resp.ok:
+                return resp
 
-                if resp.status != 429:
-                    return resp
+            if resp.status != 429:
+                return resp
 
-                time_to_sleep = None
+            time_to_sleep = None
 
-                if resp.headers:
-                    for key, value in resp.headers.items():
-                        if key.lower() == "x-ratelimit-reset-minute":
-                            reset_time = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S GMT")
-                            reset_time = reset_time.replace(tzinfo=timezone.utc)
+            if resp.headers:
+                for key, value in resp.headers.items():
+                    if key.lower() == "x-ratelimit-reset-minute":
+                        reset_time = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S GMT")
+                        reset_time = reset_time.replace(tzinfo=timezone.utc)
 
-                            time_to_sleep = reset_time - datetime.now(timezone.utc)
+                        time_to_sleep = reset_time - datetime.now(timezone.utc)
 
-                if time_to_sleep is not None:
-                    console.log(f"Rate limit exceeded. Waiting for {time_to_sleep.total_seconds()} seconds.")
-                    await asyncio.sleep(time_to_sleep.total_seconds())
+            if time_to_sleep is not None:
+                console.log(f"Rate limit exceeded. Waiting for {time_to_sleep.total_seconds()} seconds.")
+                await asyncio.sleep(time_to_sleep.total_seconds())
+            else:
+                break
 
-                    continue
-                else:
-                    break
-
-            return resp
-
-        except Exception as e:
-            console.print_exception(show_locals=True)
-            raise e
+        return resp
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
