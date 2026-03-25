@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.2.7`
+- Allow collection of parsing jobs instead of immediately running them
+
 ## `0.2.6`
 - Refactor extracting of precipitation values from tile provider
 - Refactor WeatherKit forecast downloader to support multiple forecast types
