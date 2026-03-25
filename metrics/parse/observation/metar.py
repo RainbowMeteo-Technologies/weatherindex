@@ -57,7 +57,7 @@ class WeatherCondition:
     other: str | None
 
     @staticmethod
-    def from_tuple(weather_tuple: tuple[str | None,...]) -> "WeatherCondition":
+    def from_tuple(weather_tuple: tuple[str | None, ...]) -> "WeatherCondition":
         intensity, descriptor, precipitation, obscuration, other = weather_tuple
         return WeatherCondition(intensity, descriptor, precipitation, obscuration, other)
 
@@ -74,12 +74,10 @@ class WeatherCondition:
         rain_codes = {"DZ", "RA", "GR", "GS"}
         return any(atom in rain_codes for atom in atoms)
 
-
     def is_snow(self) -> bool:
         atoms = self._split_precip_atoms(self.precipitation)
         snow_codes = {"SN", "GR", "GS", "SG", "IC", "PL"}
         return any(atom in snow_codes for atom in atoms)
-
 
 
 class MetarParser(BaseParser):
