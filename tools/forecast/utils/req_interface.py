@@ -13,6 +13,7 @@ console = Console()
 class Response:
     status: int = 0  # http status code, 0 if failed for any other reason
     payload: bytes | str | None = None
+    headers: dict[str, str] | None = None
 
     @property
     def ok(self) -> bool:
@@ -49,15 +50,20 @@ class RequestInterface():
                                            headers=headers,
                                            params=params,
                                            timeout=client_timeout) as resp:
+
                         if resp.ok:
                             return Response(status=resp.status,
-                                            payload=(await resp.read()))
+                                            payload=(await resp.read()),
+                                            headers=dict(resp.headers) if resp.headers else None)
                         else:
                             console.log(f"{resp.status} - {url}")
-                        return Response(status=resp.status)
+
+                        return Response(status=resp.status,
+                                        headers=dict(resp.headers) if resp.headers else None)
 
                 except Exception as e:
                     return Response()
+
             return await self._run_with_retries(_try_download)
 
     async def _native_post(self, url: str,

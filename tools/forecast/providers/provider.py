@@ -159,6 +159,7 @@ class BaseParallelExecutionProvider(BaseProvider):
         with ProcessPoolExecutor(max_workers=self._process_num) as pool:
             tasks = [loop.run_in_executor(pool, chunk_func, chunk) for chunk in batched(args, self._chunk_size)]
             chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
+
         return [item for chunk in chunk_results for item in chunk]
 
 
