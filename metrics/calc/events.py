@@ -164,7 +164,8 @@ class Worker:
 
         calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
                                            observations=sensor_observations,
-                                           forecast=forecast)
+                                           forecast=forecast,
+                                           metrics_folder=session.metrics_folder)
 
         self._dump_frame(calculated_frame)
 
@@ -204,7 +205,8 @@ class Worker:
     def _calculate(self,
                    forecast_times: typing.List[int],
                    observations: pandas.DataFrame,
-                   forecast: pandas.DataFrame) -> pandas.DataFrame:
+                   forecast: pandas.DataFrame,
+                   metrics_folder: str) -> pandas.DataFrame:
         """Implements calculation of metrics. This function takes two tables: observation, forecast.
         Data in both tables resampled by 10 minutes (using max value of precip_rate).
 
@@ -253,6 +255,10 @@ class Worker:
             "precip_rate": "max"
         }).reset_index()
 
+        self._dump_pre_merge_frames(forecast=forecast,
+                                    observations=observations,
+                                    metrics_folder=metrics_folder)
+
         print(f"Observations:\n{observations}")
         print(f"Forecast:\n{forecast}")
 
@@ -283,6 +289,22 @@ class Worker:
               f"{result_metrics}")
 
         return result_metrics
+
+    def _dump_pre_merge_frames(self,
+                               forecast: pandas.DataFrame,
+                               observations: pandas.DataFrame,
+                               metrics_folder: str) -> None:
+        vendor_pair = f"{self._params.forecast_vendor.value}_{self._params.observation_vendor.value}"
+        pre_merge_root = os.path.join(metrics_folder, "pre_merge", vendor_pair)
+        forecast_path = os.path.join(pre_merge_root, "forecast")
+        observations_path = os.path.join(pre_merge_root, "observations")
+
+        os.makedirs(forecast_path, exist_ok=True)
+        os.makedirs(observations_path, exist_ok=True)
+
+        file_name = f"{self._params.time_range[0]}.parquet"
+        forecast.to_parquet(os.path.join(forecast_path, file_name), index=False)
+        observations.to_parquet(os.path.join(observations_path, file_name), index=False)
 
 
 def _process_time_range(params: JobParams):
