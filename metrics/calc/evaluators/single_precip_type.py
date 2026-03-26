@@ -44,6 +44,7 @@ class SinglePrecipTypeEvaluator:
                                           forecast_time=forecast_row.forecast_time,
                                           precip_type_forecast=forecast_row.precip_type,
                                           precip_rate_forecast=forecast_row.precip_rate,
+                                          precip_prob_forecast=forecast_row.precip_prob,
                                           forecasted_precip=forecasted_rain))
 
         return result

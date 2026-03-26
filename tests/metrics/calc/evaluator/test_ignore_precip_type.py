@@ -23,9 +23,9 @@ class TestIgnorePrecipTypeEvaluator:
                 ("Z", 10.0, PrecipitationType.RAIN.value, timestamp(0))
             ]),
             create_forecast([
-                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Y", 0.0, PrecipitationType.MIX.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Y", 0.0, PrecipitationType.MIX.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, "X", *create_metrics(tp=1)),
@@ -67,9 +67,9 @@ class TestIgnorePrecipTypeEvaluator:
             ]),
             create_forecast([
                 # 2 TP, 1 TN -> 1.0 precision, 1.0 recall
-                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Y", 0.0, PrecipitationType.MIX.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Y", 0.0, PrecipitationType.MIX.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, 1, 1, 1)

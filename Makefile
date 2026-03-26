@@ -40,7 +40,8 @@ docker-publish-sensors:docker-build-sensors
 # testing
 test:
 	export PYTHONPATH="${PYTHONPATH}:$(CURDIR):$(CURDIR)/tools" && \
-	pytest tests/
+	pytest tests/metrics tests/tools/forecast tests/tools/sensors
+
 
 # test coverage
 coverage:

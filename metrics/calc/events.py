@@ -9,14 +9,12 @@ import uuid
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-
 from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
 from metrics.utils.time import floor_timestamp
-
 from rich.console import Console
 from tqdm import tqdm
 
@@ -234,9 +232,11 @@ class Worker:
                                            period=self._params.group_period,
                                            offset=self._params.observations_offset)
 
-        forecast = forecast.groupby(["id", "timestamp", "forecast_time", "precip_type"]).agg({
-            "precip_rate": "max"
-        }).reset_index()
+        forecast_id_columns = ["id", "timestamp", "precip_type", "forecast_time"]
+        idx = forecast.groupby(forecast_id_columns)["precip_rate"].idxmax()
+        forecast = (forecast[[*forecast_id_columns, "precip_rate", "precip_prob"]]
+                    .loc[idx]
+                    .reset_index(drop=True))
 
         forecast = forecast[forecast["forecast_time"].isin(forecast_times)]
 
@@ -276,28 +276,29 @@ class Worker:
             assert sensor_forecast_time_data["timestamp"].unique() == [timestamp], \
                 f"Expected only one timestamp {timestamp}, got {sensor_forecast_time_data['timestamp'].unique()}"
             assert sensor_forecast_time_data["forecast_time"].unique() == [forecast_time], \
-                f"Expected only one forecast time {forecast_time}, got {sensor_forecast_time_data['forecast_time'].unique()}"
+                (f"Expected only one forecast time {forecast_time}"
+                 f", got {sensor_forecast_time_data['forecast_time'].unique()}")
 
             sensor_event_data = self._params.evaluator(sensor_observations_data, sensor_forecast_time_data)
             collected_events.extend(sensor_event_data)
 
         console.log(f"Collected {len(collected_events)} events")
 
-        assert all(len(event) == 9 for event in collected_events), \
-            f"Expected 9 columns in each event, but got {collected_events[0]}"
+        target_columns = ["id",
+                          "timestamp",
+                          "precip_type_observations",
+                          "precip_rate_observations",
+                          "observed_precip",
+                          "forecast_time",
+                          "precip_type_forecast",
+                          "precip_rate_forecast",
+                          "precip_prob_forecast",
+                          "forecasted_precip"]
 
-        result_metrics = pandas.DataFrame(
-            collected_events,
-            columns=[
-                "id",
-                "timestamp",
-                "precip_type_observations",
-                "precip_rate_observations",
-                "observed_precip",
-                "forecast_time",
-                "precip_type_forecast",
-                "precip_rate_forecast",
-                "forecasted_precip"])
+        assert all(len(event) == len(target_columns) for event in collected_events), \
+            f"Expected {len(target_columns)} columns in each event, but got {collected_events[0]}"
+
+        result_metrics = pandas.DataFrame(collected_events, columns=target_columns)
 
         result_metrics["tp"] = 0
         result_metrics["fp"] = 0
@@ -444,7 +445,7 @@ class CalculateMetrics:
         final_metrics = concat_frames(frames, columns=["id",
                                                        "timestamp", "forecast_time",
                                                        "precip_type_status_forecast",
-                                                       "precip_rate_forecast",
+                                                       "precip_rate_forecast", "precip_prob_forecast",
                                                        "precip_type_status_observations",
                                                        "precip_rate_observations",
                                                        "forecasted_precip", "observed_precip",

@@ -34,6 +34,7 @@ class IgnorePrecipTypeEvaluator:
                                           forecast_time=max_row_forecast.forecast_time,
                                           precip_type_forecast=max_row_forecast.precip_type,
                                           precip_rate_forecast=max_row_forecast.precip_rate,
+                                          precip_prob_forecast=max_row_forecast.precip_prob,
                                           forecasted_precip=forecasted_precip))
 
         return result

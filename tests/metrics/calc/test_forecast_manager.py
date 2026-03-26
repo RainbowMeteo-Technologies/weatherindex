@@ -15,11 +15,12 @@ def _create_sensors_table(data: typing.List[any]) -> pandas.DataFrame:
 
 
 def _create_precip_table(data: typing.List[any]) -> pandas.DataFrame:
-    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp"], data=data)
+    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "precip_prob", "timestamp"], data=data)
 
 
 def _create_forecast_table(data: typing.List[any]) -> pandas.DataFrame:
-    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp", "forecast_time"], data=data)
+    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp", "precip_prob", "forecast_time"],
+                            data=data)
 
 
 class DummyProvider(ForecastProvider):
@@ -78,13 +79,13 @@ class TestForecastManager:
             _create_sensors_table(data=[("sensor_1", 23.34, 53.43)]),
             # provider_data
             {
-                0: _create_precip_table(data=[("sensor_1", 10.0, 1, 30),
-                                              ("sensor_2", 10.0, 2, 650)]),
-                600: _create_precip_table(data=[("sensor_1", 10.0, 2, 650)])
+                0: _create_precip_table(data=[("sensor_1", 10.0, 1, 1.0, 30),
+                                              ("sensor_2", 10.0, 2, 1.0, 650)]),
+                600: _create_precip_table(data=[("sensor_1", 10.0, 2, 1.0, 650)])
             },
             # expected_data
-            _create_forecast_table(data=[("sensor_1", 10.0, 1, 30, 30),
-                                         ("sensor_1", 10.0, 2, 650, 50)])
+            _create_forecast_table(data=[("sensor_1", 10.0, 1, 30, 1.0, 30),
+                                         ("sensor_1", 10.0, 2, 650, 1.0, 50)])
         )
     ])
     def test_load_forecast(self,

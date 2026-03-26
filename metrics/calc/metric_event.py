@@ -10,6 +10,7 @@ MetricEvent = namedtuple("MetricEvent",
                           "forecast_time",
                           "precip_type_forecast",
                           "precip_rate_forecast",
+                          "precip_prob_forecast",
                           "forecasted_precip"])
 
 
@@ -21,6 +22,7 @@ def create_metric_event(id: str,
                         forecast_time: int,
                         precip_type_forecast: int,
                         precip_rate_forecast: float,
+                        precip_prob_forecast: float,
                         forecasted_precip: bool) -> MetricEvent:
     return MetricEvent(id=id,
                        timestamp=timestamp,
@@ -30,4 +32,5 @@ def create_metric_event(id: str,
                        forecast_time=forecast_time,
                        precip_type_forecast=precip_type_forecast,
                        precip_rate_forecast=precip_rate_forecast,
+                       precip_prob_forecast=precip_prob_forecast,
                        forecasted_precip=forecasted_precip)

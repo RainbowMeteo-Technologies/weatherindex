@@ -14,7 +14,7 @@ def _create_sensors_table(data: typing.List[any]) -> pandas.DataFrame:
 
 
 def _create_precip_table(data: typing.List[any]) -> pandas.DataFrame:
-    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp"], data=data)
+    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "precip_prob", "timestamp"], data=data)
 
 
 class TestTileProvider:
@@ -39,8 +39,8 @@ class TestTileProvider:
             # expected_data
             _create_precip_table([
                 # TODO: fix precip_rate to correct values
-                ("sensor_1", 0.153765, PrecipitationType.RAIN.value, 7200),
-                ("sensor_2", 0.250891, PrecipitationType.SNOW.value, 7800)
+                ("sensor_1", 0.153765, PrecipitationType.RAIN.value, 1.0, 7200),
+                ("sensor_2", 0.250891, PrecipitationType.SNOW.value, 1.0, 7800)
             ])
         ),
     ])
