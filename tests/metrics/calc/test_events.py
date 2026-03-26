@@ -77,6 +77,11 @@ class TestWorker:
     @patch("metrics.calc.events.Session.create_from_folder")
     @patch("metrics.calc.events.pandas.read_parquet")
     def test_worker_smoke_run(self, read_parquet_mock, session_create_mock):
+        session_create_mock.return_value = Session(session_path="test_session",
+                                                   start_time=0,
+                                                   end_time=3600,
+                                                   tables_folder="test_tables",
+                                                   metrics_folder="test_metrics")
         forecast_manager_mock = MagicMock()
         forecast_manager_cls_mock = MagicMock()
         forecast_manager_cls_mock.return_value = forecast_manager_mock
@@ -322,7 +327,11 @@ class TestWorker:
             ), columns=("forecast_time", "tp", "tn", "fp", "fn"))
         ),
     ])
+    @patch("metrics.calc.events.os.makedirs")
+    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_calculate(self,
+                       to_parquet_mock: typing.Any,
+                       makedirs_mock: typing.Any,
                        forecast_times: typing.List[int],
                        observations: pandas.DataFrame,
                        forecast: pandas.DataFrame,
@@ -332,7 +341,8 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_times,
                                    observations=observations,
-                                   forecast=forecast)
+                                   forecast=forecast,
+                                   metrics_folder="test_metrics")
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
 
@@ -428,7 +438,11 @@ class TestWorker:
             ], columns=("forecast_time", "sensor_id", "tp", "tn", "fp", "fn"))
         ),
     ])
+    @patch("metrics.calc.events.os.makedirs")
+    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_calculate_detailed(self,
+                                to_parquet_mock: typing.Any,
+                                makedirs_mock: typing.Any,
                                 forecast_offsets: typing.List[int],
                                 precip_types: typing.List[PrecipitationType],
                                 observations: pandas.DataFrame,
@@ -440,7 +454,8 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast)
+                                   forecast=forecast,
+                                   metrics_folder="test_metrics")
 
         merged_result = pandas.merge(expected_metrics,
                                      result,
@@ -536,7 +551,11 @@ class TestWorker:
             ], columns=("forecast_time", "precision", "recall", "fscore"))
         ),
     ])
+    @patch("metrics.calc.events.os.makedirs")
+    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_precision_recall_fscore(self,
+                                     to_parquet_mock: typing.Any,
+                                     makedirs_mock: typing.Any,
                                      forecast_offsets: typing.List[int],
                                      precip_types: typing.List[PrecipitationType],
                                      observations: pandas.DataFrame,
@@ -548,7 +567,8 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast)
+                                   forecast=forecast,
+                                   metrics_folder="test_metrics")
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
         result["precision"] = result[["tp", "fp"]].apply(lambda row: precision(row["tp"], row["fp"]), axis=1)
