@@ -255,9 +255,8 @@ class Worker:
             "precip_rate": "max"
         }).reset_index()
 
-        self._dump_pre_merge_frames(forecast=forecast,
-                                    observations=observations,
-                                    metrics_folder=metrics_folder)
+        self._dump_pre_merge_observations(observations=observations, metrics_folder=metrics_folder)
+        self._dump_pre_merge_forecast(forecast=forecast, metrics_folder=metrics_folder)
 
         print(f"Observations:\n{observations}")
         print(f"Forecast:\n{forecast}")
@@ -290,21 +289,31 @@ class Worker:
 
         return result_metrics
 
-    def _dump_pre_merge_frames(self,
-                               forecast: pandas.DataFrame,
-                               observations: pandas.DataFrame,
-                               metrics_folder: str) -> None:
+    def _dump_pre_merge_observations(self,
+                                     observations: pandas.DataFrame,
+                                     metrics_folder: str) -> None:
         vendor_pair = f"{self._params.forecast_vendor.value}_{self._params.observation_vendor.value}"
         pre_merge_root = os.path.join(metrics_folder, "pre_merge", vendor_pair)
-        forecast_path = os.path.join(pre_merge_root, "forecast")
         observations_path = os.path.join(pre_merge_root, "observations")
 
-        os.makedirs(forecast_path, exist_ok=True)
         os.makedirs(observations_path, exist_ok=True)
 
         file_name = f"{self._params.time_range[0]}.parquet"
-        forecast.to_parquet(os.path.join(forecast_path, file_name), index=False)
         observations.to_parquet(os.path.join(observations_path, file_name), index=False)
+
+    def _dump_pre_merge_forecast(self,
+                                 forecast: pandas.DataFrame,
+                                 metrics_folder: str) -> None:
+        vendor_pair = f"{self._params.forecast_vendor.value}_{self._params.observation_vendor.value}"
+        pre_merge_root = os.path.join(metrics_folder, "pre_merge", vendor_pair)
+        forecast_path = os.path.join(pre_merge_root, "forecast")
+
+        os.makedirs(forecast_path, exist_ok=True)
+
+        file_name = f"{self._params.time_range[0]}.parquet"
+        forecast.to_parquet(os.path.join(forecast_path, file_name), index=False)
+
+
 
 
 def _process_time_range(params: JobParams):
