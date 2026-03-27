@@ -48,7 +48,8 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                                    session_path=session_path,
                                    time_range=sensors_time_range,
                                    forecast_manager_cls=forecast_manager_cls,
-                                   output_path="test-output"))
+                                   output_path="test-output",
+                                   pre_merge_path=os.path.join("test-output", "pre_merge")))
 
 
 def _create_observations(data: typing.List[any]) -> pandas.DataFrame:
@@ -74,9 +75,11 @@ def _create_metrics_result(data: typing.List[any], columns: typing.List[str]) ->
 
 
 class TestWorker:
+    @patch("metrics.calc.events.pandas.DataFrame.to_csv")
+    @patch("metrics.calc.events.os.makedirs")
     @patch("metrics.calc.events.Session.create_from_folder")
     @patch("metrics.calc.events.pandas.read_parquet")
-    def test_worker_smoke_run(self, read_parquet_mock, session_create_mock):
+    def test_worker_smoke_run(self, read_parquet_mock, session_create_mock, makedirs_mock, to_csv_mock):
         session_create_mock.return_value = Session(session_path="test_session",
                                                    start_time=0,
                                                    end_time=3600,
@@ -327,11 +330,11 @@ class TestWorker:
             ), columns=("forecast_time", "tp", "tn", "fp", "fn"))
         ),
     ])
+    @patch("metrics.calc.events.pandas.DataFrame.to_csv")
     @patch("metrics.calc.events.os.makedirs")
-    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_calculate(self,
-                       to_parquet_mock: typing.Any,
                        makedirs_mock: typing.Any,
+                       to_csv_mock: typing.Any,
                        forecast_times: typing.List[int],
                        observations: pandas.DataFrame,
                        forecast: pandas.DataFrame,
@@ -341,8 +344,7 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_times,
                                    observations=observations,
-                                   forecast=forecast,
-                                   metrics_folder="test_metrics")
+                                   forecast=forecast)
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
 
@@ -354,6 +356,122 @@ class TestWorker:
         for metric in ["tp", "tn", "fp", "fn"]:
             assert (merged_result[f"{metric}_expected"] ==
                     merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
+
+    @pytest.mark.parametrize("forecast_times, observations, forecast, expected_forecast_rows, expected_obs_rows", [
+        (
+            [0],
+            _create_observations([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
+            ]),
+            _create_forecast([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0), 0),
+            ]),
+            1,
+            1,
+        ),
+        (
+            [0],
+            _create_observations([
+                ("sensor_10:00", 0.0, PrecipitationType.RAIN.value, _timestamp(1)),
+                ("sensor_10:00", 0.0, PrecipitationType.RAIN.value, _timestamp(2 * 60)),
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, _timestamp(5 * 60)),
+            ]),
+            _create_forecast([
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, _timestamp(10 * 60), 0),
+            ]),
+            1,
+            1,
+        ),
+        (
+            [0, 600, 1800, 3600],
+            _create_observations([
+                ("sensor_tp", 10.0, PrecipitationType.RAIN.value, _timestamp(7800, 60)),
+                ("sensor_tn", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(7800, 100)),
+                ("sensor_fp", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(7800, 1750)),
+                ("sensor_fn", 10.0, PrecipitationType.RAIN.value, _timestamp(7800, 3540)),
+            ]),
+            _create_forecast([
+                ("sensor_tp", 10.0, PrecipitationType.RAIN.value, _timestamp(7800, 60), 60),
+                ("sensor_tn", 0.0, PrecipitationType.RAIN.value, _timestamp(7800, 100), 100),
+                ("sensor_fp", 10.0, PrecipitationType.RAIN.value, _timestamp(7800, 1700), 1700),
+                ("sensor_fn", 0.0, PrecipitationType.RAIN.value, _timestamp(7800, 3550), 3550)
+            ]),
+            4,
+            4,
+        ),
+        (
+            [0, 600, 1200],
+            _create_observations([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, -1)),
+                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 1)),
+                ("sensor_09:59", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 599)),
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 600)),
+                ("sensor_10:01", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 601)),
+                ("sensor_20:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 1200)),
+            ]),
+            _create_forecast([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, -1), 0),
+                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 1), 600),
+                ("sensor_09:59", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 599), 600),
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 600), 600),
+                ("sensor_10:01", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 601), 1200),
+                ("sensor_20:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0, 1200), 1200),
+            ]),
+            6,
+            6,
+        ),
+        (
+            [0, 600],
+            _create_observations([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
+                ("sensor_00:01", 10.0, PrecipitationType.SNOW.value, _timestamp(1)),
+            ]),
+            _create_forecast([
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, _timestamp(0), 0),
+                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, _timestamp(1), 1),
+            ]),
+            2,
+            2,
+        ),
+    ])
+    @patch("metrics.calc.events.pandas.DataFrame.to_csv")
+    @patch("metrics.calc.events.os.makedirs")
+    def test_pre_merge_frames_row_counts(self,
+                                         makedirs_mock: typing.Any,
+                                         to_csv_mock: typing.Any,
+                                         forecast_times: typing.List[int],
+                                         observations: pandas.DataFrame,
+                                         forecast: pandas.DataFrame,
+                                         expected_forecast_rows: int,
+                                         expected_obs_rows: int):
+        captured: dict[str, pandas.DataFrame] = {}
+        worker = _create_worker(forecast_offsets=forecast_times)
+
+        def _capture_observations(observations: pandas.DataFrame) -> None:
+            captured["observations"] = observations.copy()
+
+        def _capture_forecast(forecast: pandas.DataFrame) -> None:
+            captured["forecast"] = forecast.copy()
+
+        worker._dump_pre_merge_observations_chunk = _capture_observations
+        worker._dump_pre_merge_forecast_chunk = _capture_forecast
+
+        worker._calculate(forecast_times=forecast_times,
+                          observations=observations,
+                          forecast=forecast)
+
+        assert len(captured["forecast"]) == expected_forecast_rows
+        assert len(captured["observations"]) == expected_obs_rows
+
+        forecast_cols = set(captured["forecast"].columns)
+        obs_cols = set(captured["observations"].columns)
+        assert forecast_cols == {"id", "timestamp", "precip_type_status", "forecast_time", "precip_rate"}
+        assert obs_cols == {"id", "timestamp", "precip_type_status", "precip_rate"}
+
+        for col in ("tp", "fp", "tn", "fn", "forecasted_precip", "observed_precip"):
+            assert col not in forecast_cols
+            assert col not in obs_cols
 
     @pytest.mark.parametrize("forecast_offsets, precip_types, observations, forecast, expected_metrics", [
         (
@@ -438,11 +556,11 @@ class TestWorker:
             ], columns=("forecast_time", "sensor_id", "tp", "tn", "fp", "fn"))
         ),
     ])
+    @patch("metrics.calc.events.pandas.DataFrame.to_csv")
     @patch("metrics.calc.events.os.makedirs")
-    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_calculate_detailed(self,
-                                to_parquet_mock: typing.Any,
                                 makedirs_mock: typing.Any,
+                                to_csv_mock: typing.Any,
                                 forecast_offsets: typing.List[int],
                                 precip_types: typing.List[PrecipitationType],
                                 observations: pandas.DataFrame,
@@ -454,8 +572,7 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast,
-                                   metrics_folder="test_metrics")
+                                   forecast=forecast)
 
         merged_result = pandas.merge(expected_metrics,
                                      result,
@@ -551,11 +668,11 @@ class TestWorker:
             ], columns=("forecast_time", "precision", "recall", "fscore"))
         ),
     ])
+    @patch("metrics.calc.events.pandas.DataFrame.to_csv")
     @patch("metrics.calc.events.os.makedirs")
-    @patch("metrics.calc.events.pandas.DataFrame.to_parquet")
     def test_precision_recall_fscore(self,
-                                     to_parquet_mock: typing.Any,
                                      makedirs_mock: typing.Any,
+                                     to_csv_mock: typing.Any,
                                      forecast_offsets: typing.List[int],
                                      precip_types: typing.List[PrecipitationType],
                                      observations: pandas.DataFrame,
@@ -567,8 +684,7 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast,
-                                   metrics_folder="test_metrics")
+                                   forecast=forecast)
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
         result["precision"] = result[["tp", "fp"]].apply(lambda row: precision(row["tp"], row["fp"]), axis=1)
