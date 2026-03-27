@@ -2,6 +2,7 @@
 
 ## `0.2.7`
 - Allow collection of parsing jobs instead of immediately running them
+- Save pre-merge parquets of observations and forecast
 
 ## `0.2.6`
 - Refactor extracting of precipitation values from tile provider

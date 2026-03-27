@@ -59,6 +59,7 @@ class JobParams:
     session_path: str
     time_range: typing.Tuple[int, int]
     output_path: str
+    pre_merge_path: str
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
@@ -253,6 +254,9 @@ class Worker:
             "precip_rate": "max"
         }).reset_index()
 
+        self._dump_pre_merge_observations_chunk(observations=observations)
+        self._dump_pre_merge_forecast_chunk(forecast=forecast)
+
         print(f"Observations:\n{observations}")
         print(f"Forecast:\n{forecast}")
 
@@ -283,6 +287,22 @@ class Worker:
               f"{result_metrics}")
 
         return result_metrics
+
+    def _dump_pre_merge_observations_chunk(self, observations: pandas.DataFrame) -> None:
+        observations_path = os.path.join(self._params.pre_merge_path, "observations")
+
+        os.makedirs(observations_path, exist_ok=True)
+
+        file_name = f"{uuid.uuid4().hex}.csv"
+        observations.to_csv(os.path.join(observations_path, file_name), index=False)
+
+    def _dump_pre_merge_forecast_chunk(self, forecast: pandas.DataFrame) -> None:
+        forecast_path = os.path.join(self._params.pre_merge_path, "forecast")
+
+        os.makedirs(forecast_path, exist_ok=True)
+
+        file_name = f"{uuid.uuid4().hex}.csv"
+        forecast.to_csv(os.path.join(forecast_path, file_name), index=False)
 
 
 def _process_time_range(params: JobParams):
@@ -368,6 +388,7 @@ class CalculateMetrics:
         start_time, end_time = self._calc_sensors_range()
 
         jobs = []
+        pre_merge_path = os.path.join(output_path, "pre_merge")
         for timestamp in range(start_time, end_time, self._split_time_range):
             jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
                                   observation_vendor=self._observation_vendor,
@@ -380,13 +401,17 @@ class CalculateMetrics:
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
                                   forecast_manager_cls=self._forecast_manager_cls,
-                                  output_path=output_path))
+                                  output_path=output_path,
+                                  pre_merge_path=pre_merge_path))
 
         return [functools.partial(_process_time_range, params=job) for job in jobs]
 
     def calculate(self, output_csv: str, process_num: int = 1) -> None:
         output_path = os.path.join(os.path.dirname(output_csv),
                                    f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
+        pre_merge_path = os.path.join(output_path, "pre_merge")
+        output_stem = os.path.splitext(os.path.basename(output_csv))[0]
+        pre_merge_output_path = os.path.dirname(output_csv)
 
         with ProcessPoolExecutor(max_workers=process_num,
                                  mp_context=multiprocessing.get_context("spawn")) as executor:
@@ -414,8 +439,38 @@ class CalculateMetrics:
                                                        "forecasted_precip", "observed_precip",
                                                        "tp", "fp", "tn", "fn"])
         final_metrics.to_csv(output_csv, index=False)
+        CalculateMetrics.dump_merged_pre_merge_chunks(pre_merge_path=pre_merge_path,
+                                                      pre_merge_output_path=pre_merge_output_path,
+                                                      output_stem=output_stem)
 
         shutil.rmtree(output_path, ignore_errors=True)
+
+    @staticmethod
+    def dump_merged_pre_merge_chunks(pre_merge_path: str,
+                                     pre_merge_output_path: str,
+                                     output_stem: str) -> None:
+        os.makedirs(pre_merge_output_path, exist_ok=True)
+
+        def _merge_chunks(chunk_type: str) -> None:
+            chunk_dir = os.path.join(pre_merge_path, chunk_type)
+            if not os.path.isdir(chunk_dir):
+                console.log(f"Found no pre-merge {chunk_type} chunks at {chunk_dir}")
+                return
+
+            chunks = []
+            for filename in os.listdir(chunk_dir):
+                if filename.endswith(".csv"):
+                    chunks.append(pandas.read_csv(os.path.join(chunk_dir, filename)))
+
+            if len(chunks) == 0:
+                console.log(f"Found no pre-merge {chunk_type} chunks at {chunk_dir}")
+                return
+
+            merged_chunks = concat_frames(chunks)
+            merged_chunks.to_csv(os.path.join(pre_merge_output_path, f"{chunk_type}.{output_stem}.csv"), index=False)
+
+        _merge_chunks("forecast")
+        _merge_chunks("observations")
 
 
 def calc_events(session_path: str,
