@@ -1,8 +1,7 @@
 import argparse
-import os
 
 from metrics.data_vendor import DataVendor
-from metrics.calc.events import CalculateMetrics
+from metrics.calc.events import calc_events
 
 from metrics.utils.precipitation import PrecipitationType
 from rich.console import Console
@@ -23,20 +22,14 @@ def _run_events(args: argparse.Namespace):
                 f"- sensor_selection_path = {args.filter_sensors_dir}\n"
                 f"- process_num = {args.process_num}\n")
 
-    calculator = CalculateMetrics(
-        forecast_vendor=DataVendor(args.forecast_vendor),
-        observation_vendor=DataVendor(args.observation_vendor),
-        session_path=args.session_path,
-        forecast_offsets=[int(v) * 60 for v in args.offsets.split(" ")],
-        threshold=args.threshold,
-        precip_types=[PrecipitationType[t.upper()] for t in args.precip_types],
-        observations_offset=args.observations_offset,
-        sensor_selection_path=args.filter_sensors_dir
-    )
-
-    os.makedirs(os.path.dirname(args.output_csv), exist_ok=True)
-    calculator.calculate(output_csv=args.output_csv,
-                         process_num=args.process_num)
+    calc_events(forecast_vendor=DataVendor(args.forecast_vendor),
+                observation_vendor=DataVendor(args.observation_vendor),
+                forecast_offsets=[int(v) * 60 for v in args.offsets.split(" ")],
+                observations_offset=args.observations_offset,
+                rain_threshold=args.threshold,
+                sensor_selection_path=args.filter_sensors_dir,
+                process_num=args.process_num,
+                output_csv=args.output_csv)
 
 
 def _parse_event_args(subparsers: argparse._SubParsersAction):

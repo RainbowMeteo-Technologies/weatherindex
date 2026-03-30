@@ -339,6 +339,18 @@ class CalculateMetrics:
         self._group_period = group_period
         self._forecast_manager_cls = forecast_manager_cls
 
+        self._session = Session.create_from_folder(session_path)
+
+    @property
+    def metrics_path(self) -> str:
+        return os.path.join(self._session.metrics_folder,
+                            f"{self._forecast_vendor.value}.{self._observation_vendor.value}.csv")
+
+    @property
+    def partial_metrics_dir(self) -> str:
+        return os.path.join(self._session.metrics_folder,
+                            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
+
     def _calc_sensors_range(self) -> typing.Tuple[int, int]:
         """Calculates aligned sensors range based on session start/end time
 
@@ -356,7 +368,7 @@ class CalculateMetrics:
 
         return (start_time, end_time)
 
-    def collect_jobs(self, output_path: str) -> typing.List[typing.Callable[[], None]]:
+    def collect_jobs(self) -> typing.List[typing.Callable[[], None]]:
         selected_sensors = read_selected_sensors(self._sensor_selection_path)
         selected_sensors = selected_sensors.drop_duplicates(subset=["id"], keep="first")
         selected_sensors_ids = selected_sensors["id"].unique()
@@ -380,17 +392,14 @@ class CalculateMetrics:
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
                                   forecast_manager_cls=self._forecast_manager_cls,
-                                  output_path=output_path))
+                                  output_path=self.partial_metrics_dir))
 
         return [functools.partial(_process_time_range, params=job) for job in jobs]
 
-    def calculate(self, output_csv: str, process_num: int = 1) -> None:
-        output_path = os.path.join(os.path.dirname(output_csv),
-                                   f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
-
+    def calculate(self, process_num: int = 1) -> None:
         with ProcessPoolExecutor(max_workers=process_num,
                                  mp_context=multiprocessing.get_context("spawn")) as executor:
-            futures = [executor.submit(job) for job in self.collect_jobs(output_path)]
+            futures = [executor.submit(job) for job in self.collect_jobs()]
             for _ in tqdm(as_completed(futures),
                           total=len(futures),
                           desc="Calculating metrics...",
@@ -398,12 +407,12 @@ class CalculateMetrics:
                 pass
 
         frames = []
-        for filename in os.listdir(output_path):
+        for filename in os.listdir(self.partial_metrics_dir):
             if filename.endswith(".csv"):
-                frames.append(pandas.read_csv(os.path.join(output_path, filename)))
+                frames.append(pandas.read_csv(os.path.join(self.partial_metrics_dir, filename)))
 
         if len(frames) == 0:
-            console.log(f"Found no frames at {output_path}")
+            console.log(f"Found no frames at {self.partial_metrics_dir}")
 
         final_metrics = concat_frames(frames, columns=["id",
                                                        "timestamp", "forecast_time",
@@ -413,9 +422,9 @@ class CalculateMetrics:
                                                        "precip_rate_observations",
                                                        "forecasted_precip", "observed_precip",
                                                        "tp", "fp", "tn", "fn"])
-        final_metrics.to_csv(output_csv, index=False)
+        final_metrics.to_csv(self.metrics_path, index=False)
 
-        shutil.rmtree(output_path, ignore_errors=True)
+        shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
 
 
 def calc_events(session_path: str,
@@ -437,5 +446,7 @@ def calc_events(session_path: str,
                                   sensor_selection_path=sensor_selection_path,
                                   forecast_manager_cls=forecast_manager_cls)
 
-    calculator.calculate(output_csv=output_csv,
-                         process_num=process_num)
+    calculator.calculate(process_num=process_num)
+
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+    shutil.move(calculator.metrics_path, output_csv)
