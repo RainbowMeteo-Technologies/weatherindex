@@ -181,9 +181,6 @@ class TestWorker:
         worker = _create_worker()
         result = worker._align_time_column(data=data, column_name=column_name, period=period)
 
-        print(result)
-        print(expected_data)
-
         pandas.testing.assert_frame_equal(result.reset_index(drop=True),
                                           expected_data.reset_index(drop=True))
 

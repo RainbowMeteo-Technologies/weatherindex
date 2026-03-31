@@ -115,9 +115,6 @@ class TestForecastManager:
 
         result = manager.load_forecast(time_rage=time_range, sensors_table=sensors_table)
 
-        print(result)
-        print(expected_data)
-
         pandas.testing.assert_frame_equal(result.reset_index(drop=True),
                                           expected_data.reset_index(drop=True),
                                           check_like=True)

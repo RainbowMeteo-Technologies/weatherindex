@@ -250,8 +250,8 @@ class Worker:
             "precip_rate": "max"
         }).reset_index()
 
-        print(f"Observations:\n{observations}")
-        print(f"Forecast:\n{forecast}")
+        console.log(f"Observations:\n{observations}")
+        console.log(f"Forecast:\n{forecast}")
 
         collected_events = []
 
@@ -281,7 +281,7 @@ class Worker:
                     sensor_event_data = self._params.evaluator(sensor_observations_data, sensor_forecast_time_data)
                     collected_events.extend(sensor_event_data)
 
-        print(f"Collected {len(collected_events)} events")
+        console.log(f"Collected {len(collected_events)} events")
 
         assert all(len(event) == 9 for event in collected_events), \
             f"Expected 9 columns in each event, but got {collected_events[0]}"
@@ -309,10 +309,10 @@ class Worker:
         result_metrics.loc[(~result_metrics["forecasted_precip"]) & (~result_metrics["observed_precip"]), "tn"] = 1
         result_metrics.loc[(~result_metrics["forecasted_precip"]) & (result_metrics["observed_precip"]), "fn"] = 1
 
-        print(f"Metrics (forecast - {self._params.forecast_vendor.value}, "
-              f"observations - {self._params.observation_vendor.value}, "
-              f"session_path - {self._params.session_path}):\n"
-              f"{result_metrics}")
+        console.log(f"Metrics (forecast - {self._params.forecast_vendor.value}, "
+                    f"observations - {self._params.observation_vendor.value}, "
+                    f"session_path - {self._params.session_path}):\n"
+                    f"{result_metrics}")
 
         return result_metrics
 
