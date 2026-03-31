@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.3.0`
+- Implement evaluator - function to implement flexible approach for event metric calculation
+- Fix warnings in test
+- Always store metrics result in session metrics folder
+
 ## `0.2.7`
 - Allow collection of parsing jobs instead of immediately running them
 

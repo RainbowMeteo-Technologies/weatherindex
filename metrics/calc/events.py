@@ -9,12 +9,14 @@ import uuid
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
+
+from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
-from metrics.utils.precipitation import PrecipitationType
 from metrics.utils.time import floor_timestamp
+
 from rich.console import Console
 from tqdm import tqdm
 
@@ -35,10 +37,8 @@ class JobParams:
         List of sensors that should be used to compare. If list is empty then all sensors will be used
     forecast_offsets : List[int]
         Forecast offsets (in minutes) for which metrics should be calculated
-    threshold : float
-        Threshold of the precipitation in mm/h
-    precip_types : List[int]
-        List of types which is considered to be an precip event
+    evaluator : typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]]
+        Evaluator to use to calculate metrics
     sesssion_path : str
         Path to the session directory
     sensors_path : str
@@ -54,11 +54,10 @@ class JobParams:
     observation_vendor: DataVendor
     sensor_ids: typing.List[str]
     forecast_offsets: typing.List[int]
-    threshold: float
-    precip_types: typing.List[int]
     session_path: str
     time_range: typing.Tuple[int, int]
     output_path: str
+    evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]]
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
@@ -235,8 +234,7 @@ class Worker:
                                            period=self._params.group_period,
                                            offset=self._params.observations_offset)
 
-        forecast["precip_type_status"] = forecast["precip_type"].isin(self._params.precip_types)
-        forecast = forecast.groupby(["id", "timestamp", "precip_type_status", "forecast_time"]).agg({
+        forecast = forecast.groupby(["id", "timestamp", "forecast_time", "precip_type"]).agg({
             "precip_rate": "max"
         }).reset_index()
 
@@ -248,24 +246,58 @@ class Worker:
                                                period=self._params.group_period,
                                                offset=self._params.observations_offset)
 
-        observations["precip_type_status"] = observations["precip_type"].isin(self._params.precip_types)
-        observations = observations.groupby(["id", "timestamp", "precip_type_status"]).agg({
+        observations = observations.groupby(["id", "timestamp", "precip_type"]).agg({
             "precip_rate": "max"
         }).reset_index()
 
         print(f"Observations:\n{observations}")
         print(f"Forecast:\n{forecast}")
 
-        result_metrics = pandas.merge(forecast, observations,
-                                      on=["id", "timestamp"],
-                                      how="inner",
-                                      suffixes=("_forecast", "_observations"))
+        collected_events = []
 
-        result_metrics["forecasted_precip"] = ((result_metrics["precip_rate_forecast"] > self._params.threshold) &
-                                               result_metrics["precip_type_status_forecast"])
+        for sensor_id in observations["id"].unique():
+            sensor_observations = observations[observations["id"] == sensor_id]
 
-        result_metrics["observed_precip"] = ((result_metrics["precip_rate_observations"] > self._params.threshold) &
-                                             result_metrics["precip_type_status_observations"])
+            for timestamp in sensor_observations["timestamp"].unique():
+                sensor_observations_data = sensor_observations[sensor_observations["timestamp"] == timestamp]
+                sensor_forecast_data = forecast[(forecast["id"] == sensor_id) & (forecast["timestamp"] == timestamp)]
+
+                for forecast_time in sensor_forecast_data["forecast_time"].unique():
+                    sensor_forecast_time_data = sensor_forecast_data[(
+                        sensor_forecast_data["forecast_time"] == forecast_time)]
+
+                    assert sensor_observations_data["id"].unique() == [sensor_id], \
+                        f"Expected only one sensor id {sensor_id}, got {sensor_observations_data['id'].unique()}"
+                    assert sensor_observations_data["timestamp"].unique() == [timestamp], \
+                        f"Expected only one timestamp {timestamp}, got {sensor_observations_data['timestamp'].unique()}"
+
+                    assert sensor_forecast_time_data["id"].unique() == [sensor_id], \
+                        f"Expected only one sensor id {sensor_id}, got {sensor_forecast_time_data['id'].unique()}"
+                    assert sensor_forecast_time_data["timestamp"].unique() == [timestamp], \
+                        f"Expected only one timestamp {timestamp}, got {sensor_forecast_time_data['timestamp'].unique()}"
+                    assert sensor_forecast_time_data["forecast_time"].unique() == [forecast_time], \
+                        f"Expected only one forecast time {forecast_time}, got {sensor_forecast_time_data['forecast_time'].unique()}"
+
+                    sensor_event_data = self._params.evaluator(sensor_observations_data, sensor_forecast_time_data)
+                    collected_events.extend(sensor_event_data)
+
+        print(f"Collected {len(collected_events)} events")
+
+        assert all(len(event) == 9 for event in collected_events), \
+            f"Expected 9 columns in each event, but got {collected_events[0]}"
+
+        result_metrics = pandas.DataFrame(
+            collected_events,
+            columns=[
+                "id",
+                "timestamp",
+                "precip_type_observations",
+                "precip_rate_observations",
+                "observed_precip",
+                "forecast_time",
+                "precip_type_forecast",
+                "precip_rate_forecast",
+                "forecasted_precip"])
 
         result_metrics["tp"] = 0
         result_metrics["fp"] = 0
@@ -301,8 +333,7 @@ class CalculateMetrics:
                  observation_vendor: DataVendor,
                  sensor_selection_path: typing.Optional[str],
                  forecast_offsets: typing.List[int],
-                 threshold: float,
-                 precip_types: typing.List[PrecipitationType],
+                 evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]],
                  session_path: str,
                  observations_offset: int = 0,
                  split_time_range: int = 3600,
@@ -318,10 +349,8 @@ class CalculateMetrics:
             If this directory is provided, then only sensors that were found in this directory will be used
         forecast_offsets : List[int]
             List of forecast offset (in seconds) to calculate metrics for.
-        threshold : float
-            Threshold of precipitation rate in mm/h
-        precip_types : List[PrecipitationType]
-            List of types which is considered to be an precip event
+        evaluator : typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]]
+            Evaluator to use to calculate metrics
         session_path : str
             Path to a session directory
         sensors_path : str
@@ -331,8 +360,7 @@ class CalculateMetrics:
         self._observation_vendor = observation_vendor
         self._sensor_selection_path = sensor_selection_path
         self._forecast_offsets = forecast_offsets
-        self._threshold = threshold
-        self._precip_types = precip_types
+        self._evaluator = evaluator
         self._session_path = session_path
         self._observations_offset = observations_offset
         self._split_time_range = split_time_range
@@ -387,8 +415,7 @@ class CalculateMetrics:
                                   session_path=self._session_path,
                                   time_range=(timestamp, timestamp + self._split_time_range),
                                   sensor_ids=selected_sensors_ids,
-                                  threshold=self._threshold,
-                                  precip_types=[precip_type.value for precip_type in self._precip_types],
+                                  evaluator=self._evaluator,
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
                                   forecast_manager_cls=self._forecast_manager_cls,
@@ -432,7 +459,7 @@ def calc_events(session_path: str,
                 observation_vendor: DataVendor,
                 forecast_offsets: typing.List[int],
                 observations_offset: int,
-                rain_threshold: float,
+                evaluator: str,
                 sensor_selection_path: str,
                 process_num: int,
                 output_csv: str,
@@ -441,7 +468,7 @@ def calc_events(session_path: str,
                                   forecast_vendor=forecast_vendor,
                                   observation_vendor=observation_vendor,
                                   forecast_offsets=forecast_offsets,
-                                  rain_threshold=rain_threshold,
+                                  evaluator=get_evaluator(evaluator),
                                   observations_offset=observations_offset,
                                   sensor_selection_path=sensor_selection_path,
                                   forecast_manager_cls=forecast_manager_cls)

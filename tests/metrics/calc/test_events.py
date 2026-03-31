@@ -4,9 +4,11 @@ import pandas
 import pytest
 import typing
 
+from metrics.calc.evaluators import get_evaluator
 from metrics.calc.events import CalculateMetrics, JobParams, Worker
 from metrics.calc.forecast_manager import ForecastManager
 from metrics.data_vendor import DataVendor
+
 from metrics.session import Session
 from metrics.utils.metric import precision, recall, fscore
 from metrics.utils.precipitation import PrecipitationType
@@ -18,15 +20,14 @@ def _create_calculate_metrics(forecast_vendor: DataVendor = DataVendor.AccuWeath
                               observation_vendor: DataVendor = DataVendor.Metar,
                               sensor_selection_path: typing.Optional[str] = None,
                               forecast_offsets: typing.List[int] = [0, 60, 120],
-                              threshold: float = 0.1,
-                              precip_types: typing.List[PrecipitationType] = [PrecipitationType.RAIN],
+                              evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame],
+                                                         list[list[any]]] = get_evaluator("rain_only"),
                               session_path: str = "test") -> CalculateMetrics:
     return CalculateMetrics(forecast_vendor=forecast_vendor,
                             observation_vendor=observation_vendor,
                             sensor_selection_path=sensor_selection_path,
                             forecast_offsets=forecast_offsets,
-                            threshold=threshold,
-                            precip_types=precip_types,
+                            evaluator=evaluator,
                             session_path=session_path)
 
 
@@ -34,8 +35,7 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                    observation_vendor: DataVendor = DataVendor.Metar,
                    sensor_ids: typing.List[str] = [],
                    forecast_offsets: typing.List[int] = [0],
-                   threshold: float = 0,
-                   precip_types: typing.List[PrecipitationType] = [PrecipitationType.RAIN],
+                   evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]] = get_evaluator("rain_only"),
                    session_path: str = "test",
                    sensors_time_range: typing.Tuple[int, int] = (10800, 14400),
                    forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager) -> Worker:
@@ -43,8 +43,7 @@ def _create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                                    observation_vendor=observation_vendor,
                                    sensor_ids=sensor_ids,
                                    forecast_offsets=forecast_offsets,
-                                   threshold=threshold,
-                                   precip_types=[precip_type.value for precip_type in precip_types],
+                                   evaluator=evaluator,
                                    session_path=session_path,
                                    time_range=sensors_time_range,
                                    forecast_manager_cls=forecast_manager_cls,
@@ -345,10 +344,10 @@ class TestWorker:
             assert (merged_result[f"{metric}_expected"] ==
                     merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
 
-    @pytest.mark.parametrize("forecast_offsets, precip_types, observations, forecast, expected_metrics", [
+    @pytest.mark.parametrize("forecast_offsets, evaluator, observations, forecast, expected_metrics", [
         (
             [0, 600, 1200],
-            [PrecipitationType.RAIN],
+            get_evaluator("rain_only"),
             _create_observations([
                 ("sensor_1", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
                 ("sensor_2", 0.0, PrecipitationType.RAIN.value, _timestamp(0))
@@ -372,7 +371,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.RAIN],
+            get_evaluator("rain_only"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
                 ("Y", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(0)),
@@ -391,7 +390,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.RAIN, PrecipitationType.SNOW],
+            get_evaluator("ignore_precip_type"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
                 ("Y", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(0)),
@@ -410,7 +409,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.SNOW],
+            get_evaluator("snow_only"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
                 ("Y", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
@@ -430,13 +429,12 @@ class TestWorker:
     ])
     def test_calculate_detailed(self,
                                 forecast_offsets: typing.List[int],
-                                precip_types: typing.List[PrecipitationType],
+                                evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]],
                                 observations: pandas.DataFrame,
                                 forecast: pandas.DataFrame,
                                 expected_metrics: pandas.DataFrame):
         worker = _create_worker(forecast_offsets=forecast_offsets,
-                                precip_types=precip_types,
-                                threshold=0.1)
+                                evaluator=evaluator)
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
@@ -449,13 +447,14 @@ class TestWorker:
                                      suffixes=("_expected", "_result"))
 
         for metric in ["tp", "tn", "fp", "fn"]:
-            assert (merged_result[f"{metric}_expected"] ==
-                    merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
+            assert (merged_result[f"{metric}_expected"] == merged_result[f"{metric}_result"]).all(), \
+                (f"Mismatch found in {metric} "
+                 f"{merged_result[f'{metric}_expected']} != {merged_result[f'{metric}_result']}")
 
-    @pytest.mark.parametrize("forecast_offsets, precip_types, observations, forecast, expected_metrics", [
+    @pytest.mark.parametrize("forecast_offsets, evaluator, observations, forecast, expected_metrics", [
         (
             [0, 600, 1200, 1800],
-            [PrecipitationType.RAIN],
+            get_evaluator("rain_only"),
             _create_observations([
                 ("sensor_1", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
                 ("sensor_2", 0.0, PrecipitationType.RAIN.value, _timestamp(0)),
@@ -483,7 +482,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.RAIN],
+            get_evaluator("rain_only"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.RAIN.value, _timestamp(0)),
                 ("Y", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(0)),
@@ -501,7 +500,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.RAIN, PrecipitationType.SNOW],
+            get_evaluator("ignore_precip_type"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
                 ("Y", 0.0, PrecipitationType.UNKNOWN.value, _timestamp(0)),
@@ -519,7 +518,7 @@ class TestWorker:
         ),
         (
             [0],
-            [PrecipitationType.SNOW],
+            get_evaluator("snow_only"),
             _create_observations([
                 ("X", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
                 ("Y", 10.0, PrecipitationType.SNOW.value, _timestamp(0)),
@@ -538,13 +537,11 @@ class TestWorker:
     ])
     def test_precision_recall_fscore(self,
                                      forecast_offsets: typing.List[int],
-                                     precip_types: typing.List[PrecipitationType],
+                                     evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]],
                                      observations: pandas.DataFrame,
                                      forecast: pandas.DataFrame,
                                      expected_metrics: pandas.DataFrame):
-        worker = _create_worker(forecast_offsets=forecast_offsets,
-                                precip_types=precip_types,
-                                threshold=0.1)
+        worker = _create_worker(forecast_offsets=forecast_offsets, evaluator=evaluator)
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
@@ -558,8 +555,9 @@ class TestWorker:
 
         merged_result = pandas.merge(expected_metrics, result, on="forecast_time", suffixes=("_expected", "_result"))
         for metric in ["recall", "precision", "fscore"]:
-            assert (merged_result[f"{metric}_expected"] ==
-                    merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
+            assert (merged_result[f"{metric}_expected"] == merged_result[f"{metric}_result"]).all(), \
+                (f"Mismatch found in {metric} "
+                 f"{merged_result[f'{metric}_expected']} != {merged_result[f'{metric}_result']}")
 
 
 class TestCalculateMetrics:
