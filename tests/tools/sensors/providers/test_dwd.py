@@ -97,12 +97,16 @@ async def test_download_station_files_directory_access_failure(mock_session, tem
     mock_response = AsyncMock()
     mock_response.status = 404
 
-    # Properly mock the async context manager for ClientSession
-    mock_session_instance = AsyncMock()
+    # Use MagicMock for session so .get isn't interpreted as awaitable
+    mock_session_instance = MagicMock()
     mock_session.return_value = mock_session_instance
+    mock_session_instance.__aenter__.return_value = mock_session_instance
 
-    # Mock the get method to return error response
-    mock_session_instance.get.return_value = mock_response
+    # Mock session.get(...) as an async context manager
+    mock_get_ctx = AsyncMock()
+    mock_get_ctx.__aenter__.return_value = mock_response
+    mock_get_ctx.__aexit__.return_value = None
+    mock_session_instance.get.return_value = mock_get_ctx
 
     downloaded_files = await client._download_station_files(temp_dir=temp_download_path)
 

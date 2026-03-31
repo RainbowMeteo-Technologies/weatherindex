@@ -74,7 +74,9 @@ async def test_fetch_data_success(mock_http_get, mock_publisher, temp_download_p
 
     # Verify data was stored in memory zip
     assert client._storage is not None
+
     # Note: We can't directly test the memory zip contents without exposing internal state
+    client._storage.close()
 
 
 @pytest.mark.asyncio
@@ -112,6 +114,7 @@ async def test_fetch_data_exception_handling(mock_http_get, mock_publisher, temp
         "exception" in log_text
     ])
     assert error_found, f"Network error not found in logs: {caplog.text}"
+    client._storage.close()
 
 
 @pytest.mark.asyncio
@@ -139,6 +142,7 @@ async def test_fetch_job_integration(mock_http_get, mock_publisher, temp_downloa
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
+    client._storage.close()
 
 
 @pytest.mark.asyncio
@@ -166,6 +170,7 @@ async def test_fetch_data_with_large_xml(mock_http_get, mock_publisher, temp_dow
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
+    client._storage.close()
 
 
 @pytest.mark.asyncio
@@ -193,3 +198,4 @@ async def test_fetch_data_with_special_characters(mock_http_get, mock_publisher,
 
     # Verify HTTP call was made
     mock_http_get.assert_called_once_with("https://aviationweather.gov/data/cache/metars.cache.xml.gz")
+    client._storage.close()
