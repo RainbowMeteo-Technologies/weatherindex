@@ -591,7 +591,7 @@ class TestCalculateMetrics:
     def test_collect_jobs(self, mock_session_create, mock_read_sensors):
         calc = _create_calculate_metrics()
 
-        collected_jobs = calc.collect_jobs("output_path")
+        collected_jobs = calc.collect_jobs()
 
         assert len(collected_jobs) > 0
 
