@@ -255,31 +255,31 @@ class Worker:
 
         collected_events = []
 
-        for sensor_id in observations["id"].unique():
-            sensor_observations = observations[observations["id"] == sensor_id]
+        grouped_observations = observations.groupby(["id", "timestamp"])
+        grouped_forecasts = forecast.groupby(["id", "timestamp", "forecast_time"])
 
-            for timestamp in sensor_observations["timestamp"].unique():
-                sensor_observations_data = sensor_observations[sensor_observations["timestamp"] == timestamp]
-                sensor_forecast_data = forecast[(forecast["id"] == sensor_id) & (forecast["timestamp"] == timestamp)]
+        for (sensor_id, timestamp, forecast_time), sensor_forecast_time_data in grouped_forecasts:
+            sensor_time_key = (sensor_id, timestamp)
 
-                for forecast_time in sensor_forecast_data["forecast_time"].unique():
-                    sensor_forecast_time_data = sensor_forecast_data[(
-                        sensor_forecast_data["forecast_time"] == forecast_time)]
+            if sensor_time_key not in grouped_observations.groups:
+                continue
 
-                    assert sensor_observations_data["id"].unique() == [sensor_id], \
-                        f"Expected only one sensor id {sensor_id}, got {sensor_observations_data['id'].unique()}"
-                    assert sensor_observations_data["timestamp"].unique() == [timestamp], \
-                        f"Expected only one timestamp {timestamp}, got {sensor_observations_data['timestamp'].unique()}"
+            sensor_observations_data = grouped_observations.get_group(sensor_time_key)
 
-                    assert sensor_forecast_time_data["id"].unique() == [sensor_id], \
-                        f"Expected only one sensor id {sensor_id}, got {sensor_forecast_time_data['id'].unique()}"
-                    assert sensor_forecast_time_data["timestamp"].unique() == [timestamp], \
-                        f"Expected only one timestamp {timestamp}, got {sensor_forecast_time_data['timestamp'].unique()}"
-                    assert sensor_forecast_time_data["forecast_time"].unique() == [forecast_time], \
-                        f"Expected only one forecast time {forecast_time}, got {sensor_forecast_time_data['forecast_time'].unique()}"
+            assert sensor_observations_data["id"].unique() == [sensor_id], \
+                f"Expected only one sensor id {sensor_id}, got {sensor_observations_data['id'].unique()}"
+            assert sensor_observations_data["timestamp"].unique() == [timestamp], \
+                f"Expected only one timestamp {timestamp}, got {sensor_observations_data['timestamp'].unique()}"
 
-                    sensor_event_data = self._params.evaluator(sensor_observations_data, sensor_forecast_time_data)
-                    collected_events.extend(sensor_event_data)
+            assert sensor_forecast_time_data["id"].unique() == [sensor_id], \
+                f"Expected only one sensor id {sensor_id}, got {sensor_forecast_time_data['id'].unique()}"
+            assert sensor_forecast_time_data["timestamp"].unique() == [timestamp], \
+                f"Expected only one timestamp {timestamp}, got {sensor_forecast_time_data['timestamp'].unique()}"
+            assert sensor_forecast_time_data["forecast_time"].unique() == [forecast_time], \
+                f"Expected only one forecast time {forecast_time}, got {sensor_forecast_time_data['forecast_time'].unique()}"
+
+            sensor_event_data = self._params.evaluator(sensor_observations_data, sensor_forecast_time_data)
+            collected_events.extend(sensor_event_data)
 
         console.log(f"Collected {len(collected_events)} events")
 
