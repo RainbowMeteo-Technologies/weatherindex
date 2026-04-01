@@ -1,6 +1,7 @@
 import pandas
 
 from metrics.calc.evaluators.constants import PRECIP_THRESHOLD
+from metrics.calc.metric_event import create_metric_event
 
 
 class IgnorePrecipTypeEvaluator:
@@ -12,8 +13,7 @@ class IgnorePrecipTypeEvaluator:
 
         max_row_observations = None
         for row in sensor_observations.itertuples():
-            if max_row_observations is None or \
-                    row.precip_rate > max_row_observations.precip_rate:
+            if max_row_observations is None or row.precip_rate > max_row_observations.precip_rate:
 
                 max_row_observations = row
 
@@ -26,14 +26,14 @@ class IgnorePrecipTypeEvaluator:
 
         forecasted_precip = max_row_forecast.precip_rate > 0
 
-        result.append([max_row_observations.id,
-                       max_row_observations.timestamp,
-                       max_row_observations.precip_type,
-                       max_row_observations.precip_rate,
-                       observed_precip,
-                       max_row_forecast.forecast_time,
-                       max_row_forecast.precip_type,
-                       max_row_forecast.precip_rate,
-                       forecasted_precip])
+        result.append(create_metric_event(id=max_row_observations.id,
+                                          timestamp=max_row_observations.timestamp,
+                                          precip_type_observations=max_row_observations.precip_type,
+                                          precip_rate_observations=max_row_observations.precip_rate,
+                                          observed_precip=observed_precip,
+                                          forecast_time=max_row_forecast.forecast_time,
+                                          precip_type_forecast=max_row_forecast.precip_type,
+                                          precip_rate_forecast=max_row_forecast.precip_rate,
+                                          forecasted_precip=forecasted_precip))
 
         return result

@@ -1,6 +1,8 @@
 import pandas
 
 from metrics.calc.evaluators.constants import RAIN_THRESHOLD, SNOW_THRESHOLD
+from metrics.calc.metric_event import create_metric_event
+
 from metrics.utils.precipitation import PrecipitationType
 
 
@@ -34,8 +36,15 @@ class SinglePrecipTypeEvaluator:
                 forecasted_rain = True
                 break
 
-        result.append([obs_row.id, obs_row.timestamp, obs_row.precip_type, obs_row.precip_rate, observed_rain,
-                       forecast_row.forecast_time, forecast_row.precip_type, forecast_row.precip_rate, forecasted_rain])
+        result.append(create_metric_event(id=obs_row.id,
+                                          timestamp=obs_row.timestamp,
+                                          precip_type_observations=obs_row.precip_type,
+                                          precip_rate_observations=obs_row.precip_rate,
+                                          observed_precip=observed_rain,
+                                          forecast_time=forecast_row.forecast_time,
+                                          precip_type_forecast=forecast_row.precip_type,
+                                          precip_rate_forecast=forecast_row.precip_rate,
+                                          forecasted_precip=forecasted_rain))
 
         return result
 
