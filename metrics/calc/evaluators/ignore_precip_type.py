@@ -1,14 +1,14 @@
 import pandas
 
 from metrics.calc.evaluators.constants import PRECIP_THRESHOLD
-from metrics.calc.metric_event import create_metric_event
+from metrics.calc.metric_event import MetricEvent, create_metric_event
 
 
 class IgnorePrecipTypeEvaluator:
     def __init__(self, threshold: float = PRECIP_THRESHOLD) -> None:
         self._threshold = threshold
 
-    def __call__(self, sensor_observations: pandas.DataFrame, sensor_forecast: pandas.DataFrame) -> list[list[any]]:
+    def __call__(self, sensor_observations: pandas.DataFrame, sensor_forecast: pandas.DataFrame) -> list[MetricEvent]:
         result = []
 
         max_row_observations = None

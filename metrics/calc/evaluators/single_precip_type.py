@@ -1,7 +1,7 @@
 import pandas
 
 from metrics.calc.evaluators.constants import RAIN_THRESHOLD, SNOW_THRESHOLD
-from metrics.calc.metric_event import create_metric_event
+from metrics.calc.metric_event import MetricEvent, create_metric_event
 
 from metrics.utils.precipitation import PrecipitationType
 
@@ -11,7 +11,7 @@ class SinglePrecipTypeEvaluator:
         self._precip_type = precip_type
         self._threshold = threshold
 
-    def __call__(self, sensor_observations: pandas.DataFrame, sensor_forecast: pandas.DataFrame) -> list[list[any]]:
+    def __call__(self, sensor_observations: pandas.DataFrame, sensor_forecast: pandas.DataFrame) -> list[MetricEvent]:
         """Calculates event metrics for a sensor
 
         Parameters
