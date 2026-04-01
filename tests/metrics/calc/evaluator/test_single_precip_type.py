@@ -7,7 +7,7 @@ from metrics.calc.evaluators.single_precip_type import RainOnlyEvaluator, SnowOn
 from metrics.utils.metric import precision, recall, fscore
 from metrics.utils.precipitation import PrecipitationType
 
-from tests.metrics.calc.utils import create_worker, create_observations, create_forecast, create_metrics, create_metrics_result, timestamp
+from tests.utils.metrics.calc import create_worker, create_observations, create_forecast, create_metrics, create_metrics_result, timestamp
 
 
 class TestRainOnlyEvaluator:

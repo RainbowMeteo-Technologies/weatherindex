@@ -9,7 +9,7 @@ from metrics.utils.precipitation import PrecipitationType
 
 from unittest.mock import MagicMock, patch
 
-from tests.metrics.calc.utils import create_worker, create_observations, create_forecast, create_metrics, create_metrics_result, timestamp, create_calculate_metrics
+from tests.utils.metrics.calc import create_worker, create_observations, create_forecast, create_metrics, create_metrics_result, timestamp, create_calculate_metrics
 
 
 class TestWorker:
