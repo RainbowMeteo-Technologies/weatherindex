@@ -33,4 +33,4 @@ RUN pip3 install -r ${APP_DIR}/tests/requirements.txt --no-cache-dir
 
 COPY ./scripts ${APP_DIR}/scripts
 COPY ./tests/metrics ${APP_DIR}/tests
-COPY ./tests/utils.py ${APP_DIR}/tests/utils.py
+COPY ./tests/utils ${APP_DIR}/tests/utils

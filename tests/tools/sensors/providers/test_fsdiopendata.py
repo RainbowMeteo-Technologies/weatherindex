@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -51,7 +51,8 @@ class TestFSDIOpenDataProvider:
             mock_response = AsyncMock()
             mock_response.status = 404
 
-            mock_session_instance = AsyncMock()
+            # Use MagicMock for session so .get isn't interpreted as awaitable
+            mock_session_instance = MagicMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None
 

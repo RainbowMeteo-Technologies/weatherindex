@@ -61,7 +61,6 @@ class TestSession:
         session._clear_outdated(target_dir="test",
                                 deadline=100)
 
-        print(os_rm_mock.call_args_list)
         removed_zips = []
         for args, _ in os_rm_mock.call_args_list:
             removed_zips.append(args[0])

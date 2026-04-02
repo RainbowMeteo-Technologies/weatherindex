@@ -1,0 +1,8 @@
+import os
+
+
+RAIN_THRESHOLD: float = float(os.getenv("WEATHERINDEX_RAIN_THRESHOLD", 0.1))
+SNOW_THRESHOLD: float = float(os.getenv("WEATHERINDEX_SNOW_THRESHOLD", 0.1))
+MIX_THRESHOLD: float = float(os.getenv("WEATHERINDEX_MIX_THRESHOLD", 0.1))
+
+PRECIP_THRESHOLD: float = float(os.getenv("WEATHERINDEX_PRECIP_THRESHOLD", 0.1))

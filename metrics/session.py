@@ -20,6 +20,9 @@ TABLES_FOLDER = "tables"
 # metrics
 METRICS_FOLDER = "metrics"
 
+# calculation inputs
+CALCULATION_INPUTS_FOLDER = "calc_inputs"
+
 
 class Session:
 
@@ -31,7 +34,8 @@ class Session:
                  data_folder: str = None,
                  sensors_folder: str = None,
                  tables_folder: str = None,
-                 metrics_folder: str = None):
+                 metrics_folder: str = None,
+                 calc_inputs_folder: str = None):
         self._path = session_path
         self._start_time = start_time
         self._end_time = end_time
@@ -40,6 +44,7 @@ class Session:
         self._tables_folder = tables_folder or os.path.join(self._path, TABLES_FOLDER)
         self._sensors_folder = sensors_folder or os.path.join(self._path, SENSORS_FOLDER)
         self._metrics_folder = metrics_folder or os.path.join(self._path, METRICS_FOLDER)
+        self._calc_inputs_folder = calc_inputs_folder or os.path.join(self._path, CALCULATION_INPUTS_FOLDER)
 
     @staticmethod
     def create(start_time: int, end_time: int, forecast_range: int, session_path: str, session_clear: bool):
@@ -88,6 +93,10 @@ class Session:
         return self._metrics_folder
 
     @property
+    def calc_inputs_folder(self) -> str:
+        return self._calc_inputs_folder
+
+    @property
     def data_expiration_timestamp(self) -> int:
         return self.start_time - self.forecast_range
 
@@ -99,7 +108,8 @@ class Session:
                 f"- data_folder: {self.data_folder}\n"
                 f"- sensors_folder: {self.sensors_folder}\n"
                 f"- tables_folder: {self.tables_folder}\n"
-                f"- metrics_folder: {self.metrics_folder}\n")
+                f"- metrics_folder: {self.metrics_folder}\n"
+                f"- calc_inputs_folder: {self.calc_inputs_folder}\n")
 
     def save_meta(self):
         """Saves meta info for the session
@@ -112,7 +122,8 @@ class Session:
                 "data_folder": self.data_folder,
                 "sensors_folder": self.sensors_folder,
                 "tables_folder": self.tables_folder,
-                "metrics_folder": self.metrics_folder
+                "metrics_folder": self.metrics_folder,
+                "calc_inputs_folder": self.calc_inputs_folder
             }, indent=4))
 
     @staticmethod
@@ -134,7 +145,8 @@ class Session:
                           data_folder=meta["data_folder"],
                           sensors_folder=meta["sensors_folder"],
                           tables_folder=meta["tables_folder"],
-                          metrics_folder=meta["metrics_folder"])
+                          metrics_folder=meta["metrics_folder"],
+                          calc_inputs_folder=meta["calc_inputs_folder"])
 
         return session
 
