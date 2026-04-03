@@ -17,14 +17,14 @@ class IgnorePrecipTypeEvaluator:
 
                 max_row_observations = row
 
-        observed_precip = max_row_observations.precip_rate > 0
+        observed_precip = max_row_observations.precip_rate > self._threshold
 
         max_row_forecast = None
         for row in sensor_forecast.itertuples():
             if max_row_forecast is None or row.precip_rate > max_row_forecast.precip_rate:
                 max_row_forecast = row
 
-        forecasted_precip = max_row_forecast.precip_rate > 0
+        forecasted_precip = max_row_forecast.precip_rate > self._threshold
 
         result.append(create_metric_event(id=max_row_observations.id,
                                           timestamp=max_row_observations.timestamp,
