@@ -50,7 +50,6 @@ class RequestInterface():
                                            headers=headers,
                                            params=params,
                                            timeout=client_timeout) as resp:
-
                         if resp.ok:
                             return Response(status=resp.status,
                                             payload=(await resp.read()),
@@ -63,7 +62,6 @@ class RequestInterface():
 
                 except Exception as e:
                     return Response()
-
             return await self._run_with_retries(_try_download)
 
     async def _native_post(self, url: str,

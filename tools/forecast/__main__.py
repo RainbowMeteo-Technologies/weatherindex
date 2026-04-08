@@ -282,7 +282,8 @@ if __name__ == "__main__":
     rainbow_parser = subparser.add_parser("rainbow", help="Rainbow")
     _add_sensors_params(rainbow_parser)
     rainbow_parser.add_argument("--token", type=str, required=True, help="Token to access Rainbow API")
-    rainbow_parser.add_argument("--layer", type=str, required=False, default="precip", choices=Rainbow.API_PRECIP_LAYERS,
+    rainbow_parser.add_argument("--layer", type=str, required=False, default="precip",
+                                choices=Rainbow.API_PRECIP_LAYERS,
                                 help=f"Rainbow API precip layer. Values of {Rainbow.API_PRECIP_LAYERS}")
     rainbow_parser.set_defaults(func=_create_rainbow)
 

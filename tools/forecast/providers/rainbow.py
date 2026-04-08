@@ -5,9 +5,9 @@ from typing_extensions import override  # for python <3.12
 
 class Rainbow(BaseForecastInPointProvider, RequestInterface):
     """
-    Rainbow API versions:
-        - v1 provides radars coverage
-        - v2 provides global coverage
+    Rainbow API precip layers:
+        - precip provides radars coverage
+        - precip-global provides global coverage
     """
     API_PRECIP_LAYERS = ["precip", "precip-global"]
 

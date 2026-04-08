@@ -2,13 +2,10 @@ import asyncio
 import json
 
 from datetime import datetime, timezone
-
-from rich.console import Console
-
 from forecast.providers.provider import BaseForecastInPointProvider
 from forecast.utils.req_interface import RequestInterface, Response
+from rich.console import Console
 from typing_extensions import override  # for python <3.12
-
 
 console = Console()
 
