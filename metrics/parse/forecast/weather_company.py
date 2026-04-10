@@ -1,5 +1,6 @@
 import json
 import os
+import pandas as pd
 import typing
 
 from dateutil.parser import isoparse
@@ -64,7 +65,16 @@ class WeatherCompanyParser(BaseParser):
 
             rows.append((sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type))
 
-        return rows
+        df = pd.DataFrame(rows, columns=self._get_columns())
+        df["time"] = pd.to_datetime(df["timestamp"])
+
+        df = df.set_index("time")
+        prate = df["precip_rate"].resample("5min").interpolate("time")
+        df = df.resample("5min").ffill()
+        df["precip_rate"] = prate
+        df = df.reset_index().drop(columns=["time"])
+
+        return list(df.itertuples(index=False, name=None))
 
     def _should_parse_file_extension(self, file_extension: str) -> bool:
         """See :func:`~metrics.base_parser.BaseParser._should_parse_file_extension`"""
