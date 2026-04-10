@@ -66,13 +66,22 @@ class WeatherCompanyParser(BaseParser):
             rows.append((sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type))
 
         df = pd.DataFrame(rows, columns=self._get_columns())
-        df["time"] = pd.to_datetime(df["timestamp"])
+
+        # console.log(f"Orig: {df}")
+
+        df["time"] = pd.to_datetime(df["timestamp"], unit="s")
 
         df = df.set_index("time")
         prate = df["precip_rate"].resample("5min").interpolate("time")
+        timestamp = df["timestamp"].resample("5min").interpolate("time").astype(int)
+
         df = df.resample("5min").ffill()
         df["precip_rate"] = prate
-        df = df.reset_index().drop(columns=["time"])
+        df["timestamp"] = timestamp
+
+        df = df.reset_index().drop(columns=["time"])[self._get_columns()]
+
+        # console.log(f"Interpolated: {df}")
 
         return list(df.itertuples(index=False, name=None))
 
