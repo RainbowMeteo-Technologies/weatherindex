@@ -44,12 +44,18 @@ class WeatherCompanyParser(BaseParser):
         snow_rates = data_json["payload"]["snowRate"]
         precip_probs = data_json["payload"]["precipChance"]
 
+        base_timestamp = timestamp
+
         for local_time_str, precip_type, precip_rate, snow_rate, precip_prob in zip(local_times_str_list,
                                                                                     precip_types,
                                                                                     precip_rates,
                                                                                     snow_rates,
                                                                                     precip_probs):
             timestamp = int(_parse_time(local_time_str))
+
+            if timestamp < base_timestamp:
+                return []
+
             precip_type = _parse_precip_type(precip_type)
             snow_rate = snow_rate * 10.0
             precip_rate = precip_rate
@@ -73,13 +79,13 @@ class WeatherCompanyParser(BaseParser):
 
         df = df.set_index("time")
         prate = df["precip_rate"].resample("5min").interpolate("time")
-        timestamp = df["timestamp"].resample("5min").interpolate("time").astype(int)
+        timestamp_col = df["timestamp"].resample("5min").interpolate("time").astype(int)
 
         df = df.resample("5min").ffill()
         df["precip_rate"] = prate
-        df["timestamp"] = timestamp
+        df["timestamp"] = timestamp_col
 
-        df = df.reset_index().drop(columns=["time"])[self._get_columns()]
+        df = df.reset_index(drop=True)[self._get_columns()]
 
         # console.log(f"Interpolated: {df}")
 
