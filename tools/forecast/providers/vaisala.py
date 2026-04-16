@@ -23,7 +23,7 @@ class Vaisala(BaseForecastInPointProvider, RequestInterface):
         while not resp.ok:
             resp = await self._native_get(url=url)
 
-            if resp.status != 429: # Status code for too many requests
+            if resp.status != 429:  # Status code for too many requests
                 return resp
 
             time_to_sleep = None
