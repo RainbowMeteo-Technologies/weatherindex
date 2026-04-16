@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.3.1`
+- Handle Vaisala API rate limit response
+- Add Rainbow precip-global layer
+
 ## `0.3.0`
 - Implement evaluator - function to implement flexible approach for event metric calculation
 - Fix warnings in test
