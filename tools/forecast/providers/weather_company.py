@@ -7,13 +7,25 @@ from typing_extensions import override  # for python <3.12
 
 class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
 
-    def __init__(self, token: str, *args, **kwargs):
+    PRODUCT_NAMES = {
+        # https://www.ibm.com/docs/en/environmental-intel-suite?topic=apis-short-range-forecast-15-minute
+        "v3-wx-forecast-fifteenminute": ("https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}"
+                                         "&units=s&language=en-US&format=json&apiKey={token}"),
+
+        # https://www.ibm.com/docs/en/environmental-intel-suite?topic=apis-short-range-forecast-precipitation-forecast
+        "v2fcstprecip": ("https://api.weather.com/v1/geocode/{lat}/{lon}"
+                         "/forecast/precipitation.json?language=en-US&units=s&apiKey={token}")
+    }
+
+    def __init__(self, token: str, product_name: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token = token
+        self.product_name = product_name
+        self.uri_pattern = self.PRODUCT_NAMES[product_name]
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
-        url = f"https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}&units=s&language=en-US&format=json&apiKey={self.token}"
+        url = self.uri_pattern.format(lon=lon, lat=lat, token=self.token)
         resp = await self._native_get(url=url)
         if resp.ok:
             resp.payload = json.dumps({
@@ -21,6 +33,7 @@ class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
                     "lon": lon,
                     "lat": lat
                 },
+                "product_name": self.product_name,
                 "payload": json.loads(resp.payload)
             })
 
