@@ -15,9 +15,11 @@ def test_sensors():
 
 
 def test_weather_company_smoke(test_sensors):
-    client = WeatherCompany(sensors=test_sensors, token="test_token",
-                            download_path="test_download_path",
-                            publisher=MagicMock())
-    assert isinstance(client, WeatherCompany)
-    assert isinstance(client, BaseProvider)
-    assert len(client.sensors) == 2
+    for product_name in WeatherCompany.PRODUCT_NAMES:
+        client = WeatherCompany(sensors=test_sensors, token="test_token",
+                                download_path="test_download_path",
+                                product_name=product_name,
+                                publisher=MagicMock())
+        assert isinstance(client, WeatherCompany)
+        assert isinstance(client, BaseProvider)
+        assert len(client.sensors) == 2
