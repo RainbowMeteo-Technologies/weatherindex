@@ -170,7 +170,7 @@ def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
                           frequency=args.download_period,
                           sensors=sensors,
                           token=args.token,
-                          forecast_api=args.forecast_api)
+                          product_name=args.product_name)
 
 
 def _add_sensors_params(parser: argparse.ArgumentParser):
