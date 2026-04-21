@@ -11,6 +11,7 @@ class ForecastSourcesInfo:
     s3_uri_vaisala: Optional[str] = None
     s3_uri_rainbowai: Optional[str] = None
     s3_uri_weathercompany: Optional[str] = None
+    s3_uri_flashnet: Optional[str] = None
 
 
 @dataclass

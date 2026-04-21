@@ -1,6 +1,7 @@
 from metrics.data_vendor import DataVendor
 
 from metrics.parse.forecast.accuweather import AccuWeatherParser
+from metrics.parse.forecast.flashnet import FlashNetParser
 from metrics.parse.forecast.rainbow import RainbowAiParser
 from metrics.parse.forecast.tomorrow_io import TomorrowIoParser
 from metrics.parse.forecast.vaisala import VaisalaParser
@@ -15,6 +16,7 @@ PROVIDERS_PARSERS = {
     DataVendor.Vaisala.value: VaisalaParser,
     DataVendor.RainbowAi.value: RainbowAiParser,
     DataVendor.WeatherCompany.value: WeatherCompanyParser,
+    DataVendor.FlashNet.value: FlashNetParser,
 
     DataVendor.Metar.value: MetarParser,
 }

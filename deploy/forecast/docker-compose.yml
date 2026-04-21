@@ -126,3 +126,23 @@ services:
       tomorrowio
       --forecast-type 6hours
       --token ${TOMORROW_TOKEN}
+
+  flashnet-downloader:
+    profiles:
+      - flashnet
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/flashnet/:/storage/
+      - ./world_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_FLASHNET}
+      --process-num 8
+      --chunk-size 15
+      --download-period 600
+      flashnet
+      --sensors /sensors.csv

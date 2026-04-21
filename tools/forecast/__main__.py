@@ -2,6 +2,7 @@ import argparse
 import asyncio
 
 from forecast.providers.accuweather import AccuWeather
+from forecast.providers.flashnet import FlashNet
 from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
@@ -158,6 +159,20 @@ def _create_rainviewer(args: argparse.Namespace) -> RainViewer:
                       token=args.token, zoom=args.zoom)
 
 
+def _create_flashnet(args: argparse.Namespace) -> FlashNet:
+    publisher = _create_publisher(args)
+    sensors = Sensor.from_csv(sensors_path=args.sensors,
+                              include_countries=args.include_countries)
+
+    return FlashNet(download_path=args.download_path,
+                    publisher=publisher,
+                    process_num=args.process_num,
+                    chunk_size=args.chunk_size,
+                    frequency=args.download_period,
+                    api_url=args.api_url,
+                    sensors=sensors)
+
+
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
     publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
@@ -292,6 +307,14 @@ if __name__ == "__main__":
     _add_sensors_params(weathercompany_parser)
     weathercompany_parser.add_argument("--token", type=str, required=True, help="Token")
     weathercompany_parser.set_defaults(func=_create_weathercompany)
+
+    # FlashNet
+    flashnet_parser = subparser.add_parser("flashnet", help="FlashNet")
+    _add_sensors_params(flashnet_parser)
+    flashnet_parser.add_argument("--api-url", type=str, dest="api_url", required=False,
+                                default=FlashNet.DEFAULT_API_URL,
+                                help="FlashNet Benchmark API base URL")
+    flashnet_parser.set_defaults(func=_create_flashnet)
 
     args = parser.parse_args()
 
