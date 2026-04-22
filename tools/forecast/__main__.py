@@ -293,7 +293,7 @@ if __name__ == "__main__":
     _add_sensors_params(weathercompany_parser)
     weathercompany_parser.add_argument("--token", type=str, required=True, help="Token")
     weathercompany_parser.add_argument("--product-name", type=str, required=False,
-                                       default="v3-wx-forecast-fifteenminute",
+                                       default="forecast-15-minute",
                                        choices=WeatherCompany.PRODUCT_NAMES,
                                        help="WeatherCompany specific forecast API selection")
     weathercompany_parser.set_defaults(func=_create_weathercompany)

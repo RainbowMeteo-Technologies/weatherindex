@@ -9,12 +9,12 @@ class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
 
     PRODUCT_NAMES = {
         # https://www.ibm.com/docs/en/environmental-intel-suite?topic=apis-short-range-forecast-15-minute
-        "v3-wx-forecast-fifteenminute": ("https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}"
-                                         "&units=s&language=en-US&format=json&apiKey={token}"),
+        "forecast-15-minute": ("https://api.weather.com/v3/wx/forecast/fifteenminute?geocode={lat},{lon}"
+                               "&units=s&language=en-US&format=json&apiKey={token}"),
 
         # https://www.ibm.com/docs/en/environmental-intel-suite?topic=apis-short-range-forecast-precipitation-forecast
-        "v2fcstprecip": ("https://api.weather.com/v1/geocode/{lat}/{lon}"
-                         "/forecast/precipitation.json?language=en-US&units=s&apiKey={token}")
+        "forecast-precipitation": ("https://api.weather.com/v1/geocode/{lat}/{lon}"
+                                   "/forecast/precipitation.json?language=en-US&units=s&apiKey={token}")
     }
 
     def __init__(self, token: str, product_name: str, *args, **kwargs):
