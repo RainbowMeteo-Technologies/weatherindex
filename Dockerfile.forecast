@@ -11,11 +11,11 @@ WORKDIR $APP_DIR
 COPY ./tools/forecast/requirements.txt requirements.txt
 
 RUN apt-get update && \
-    apt-get install -y ca-certificates gcc g++ git libgdal-dev gdal-bin && \
+    apt-get install -y ca-certificates gcc g++ git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     pip install -r requirements.txt --no-cache-dir && \
-    apt-get remove -y gcc g++ git libgdal-dev && \
+    apt-get remove -y gcc git g++ && \
     apt autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \
     rm requirements.txt
