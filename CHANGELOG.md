@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.3.2`
+- Support for downloading TWC forecast precipitation
+
 ## `0.3.1`
 - Handle Vaisala API rate limit response
 - Add Rainbow precip-global layer
