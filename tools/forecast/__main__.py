@@ -169,7 +169,8 @@ def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
                           chunk_size=args.chunk_size,
                           frequency=args.download_period,
                           sensors=sensors,
-                          token=args.token)
+                          token=args.token,
+                          product_name=args.product_name)
 
 
 def _add_sensors_params(parser: argparse.ArgumentParser):
@@ -291,6 +292,10 @@ if __name__ == "__main__":
     weathercompany_parser = subparser.add_parser("weathercompany", help="WeatherCompany")
     _add_sensors_params(weathercompany_parser)
     weathercompany_parser.add_argument("--token", type=str, required=True, help="Token")
+    weathercompany_parser.add_argument("--product-name", type=str, required=False,
+                                       default="forecast-15-minute",
+                                       choices=WeatherCompany.PRODUCT_NAMES,
+                                       help="WeatherCompany specific forecast API selection")
     weathercompany_parser.set_defaults(func=_create_weathercompany)
 
     args = parser.parse_args()
