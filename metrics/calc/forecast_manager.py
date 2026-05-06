@@ -107,7 +107,14 @@ class ForecastManager:
                     assert "timestamp" in data.columns
 
                     data = data[data["id"].isin(sensor_ids)].copy()
-                    data["forecast_time"] = data["timestamp"] - curr_time
+
+                    if "forecast_time" not in data.columns:
+                        data["forecast_time"] = data["timestamp"] - curr_time
+                    else:
+                        data["forecast_time"] = data.apply(lambda row: (row["timestamp"] - curr_time
+                                                                        if pandas.isna(row["forecast_time"])
+                                                                        else row["forecast_time"]),
+                                                           axis=1)
 
                     loaded_forecasts.append(data)
 
