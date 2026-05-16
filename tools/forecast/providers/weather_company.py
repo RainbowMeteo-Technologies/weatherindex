@@ -29,7 +29,7 @@ class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
         resp = await self._native_get(url=url)
         if resp.ok:
             resp_data = json.loads(resp.payload)
- 
+
             # for weathercompany errors appears with status 200 and error details in body
             if "errors" in resp_data:
                 status_override = resp_data.get("metadata", {}).get("status_code", 500)
