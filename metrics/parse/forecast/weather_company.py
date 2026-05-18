@@ -37,11 +37,15 @@ class WeatherCompanyParser(BaseParser):
         lat = data_json["position"]["lat"]
         lon = data_json["position"]["lon"]
 
-        local_times_str_list = data_json["payload"]["validTimeLocal"]
-        precip_types = data_json["payload"]["precipType"]
-        precip_rates = data_json["payload"]["precipRate"]
-        snow_rates = data_json["payload"]["snowRate"]
-        precip_probs = data_json["payload"]["precipChance"]
+        payload = data_json["payload"]
+        if "validTimeLocal" not in payload:
+            return []
+
+        local_times_str_list = payload["validTimeLocal"]
+        precip_types = payload["precipType"]
+        precip_rates = payload["precipRate"]
+        snow_rates = payload["snowRate"]
+        precip_probs = payload["precipChance"]
 
         for local_time_str, precip_type, precip_rate, snow_rate, precip_prob in zip(local_times_str_list,
                                                                                     precip_types,

@@ -28,13 +28,20 @@ class WeatherCompany(BaseForecastInPointProvider, RequestInterface):
         url = self.uri_pattern.format(lon=lon, lat=lat, token=self.token)
         resp = await self._native_get(url=url)
         if resp.ok:
+            resp_data = json.loads(resp.payload)
+
+            # for weathercompany errors appears with status 200 and error details in body
+            if "errors" in resp_data:
+                status_override = resp_data.get("metadata", {}).get("status_code", 500)
+                resp.status = status_override
+
             resp.payload = json.dumps({
                 "position": {
                     "lon": lon,
                     "lat": lat
                 },
                 "product_name": self.product_name,
-                "payload": json.loads(resp.payload)
+                "payload": resp_data
             })
 
         return resp
