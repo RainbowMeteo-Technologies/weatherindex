@@ -28,7 +28,7 @@ def test_flashnet_default_api_url(test_sensors):
     client = FlashNet(sensors=test_sensors,
                       download_path="test_download_path",
                       publisher=MagicMock())
-    assert "benchmark-api" in client.api_url
+    assert "api.meteolibre.dev" in client.api_url
     assert "nowcast" not in client.api_url  # base URL, not full endpoint
 
 

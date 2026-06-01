@@ -10,7 +10,7 @@ class FlashNet(BaseForecastInPointProvider, RequestInterface):
     """
 
     DEFAULT_API_URL = (
-        "https://benchmark-api-935480850831.europe-west3.run.app"
+        "https://api.meteolibre.dev"
     )
 
     def __init__(self, api_url: str = None, *args, **kwargs):
