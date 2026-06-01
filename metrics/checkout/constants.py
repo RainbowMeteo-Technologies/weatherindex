@@ -7,5 +7,6 @@ TOMORROWIO_PERIOD = 600     # 10 minutes
 VAISALA_PERIOD = 600        # 10 minutes
 RAINBOWAI_PERIOD = 600      # 10 minutes
 WEATHERCOMPANY_PERIOD = 600  # 10 minutes
+FLASHNET_PERIOD = 600       # 10 minutes
 
 AGGREGATION_PERIOD = 600   # Metrics aggregation period (10 minutes)

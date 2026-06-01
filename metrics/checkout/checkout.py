@@ -196,6 +196,9 @@ class CheckoutExecutor:
             DataSource.create(vendor="weathercompany", s3_uri=forecasts_info.s3_uri_weathercompany,
                               data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherCompany.value),
                               period=constants.WEATHERCOMPANY_PERIOD),
+            DataSource.create(vendor="flashnet", s3_uri=forecasts_info.s3_uri_flashnet,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.FlashNet.value),
+                              period=constants.FLASHNET_PERIOD),
         ]
 
     def observation_sources_list(self, observations_info: ObservationSourcesInfo) -> typing.List["DataSource"]:
@@ -252,6 +255,7 @@ def checkout(start_time: int,
                 f"- s3_uri_vaisala = {forecasts_source.s3_uri_vaisala}\n"
                 f"- s3_uri_rainbowai = {forecasts_source.s3_uri_rainbowai}\n"
                 f"- s3_uri_weathercompany = {forecasts_source.s3_uri_weathercompany}\n"
+                f"- s3_uri_flashnet = {forecasts_source.s3_uri_flashnet}\n"
                 f"Observation sources:\n"
                 f"- s3_uri_metar = {observations_source.s3_uri_metar}\n")
 
