@@ -4,6 +4,7 @@ import pandas as pd
 import shutil
 
 from abc import abstractmethod
+from aiolimiter import AsyncLimiter
 from concurrent.futures import ProcessPoolExecutor
 from forecast.publishers.publisher import Publisher
 from forecast.sensor import Sensor
@@ -194,6 +195,54 @@ def _process_sensor_chunk(sensors: list[Sensor],
         return await asyncio.gather(*jobs, return_exceptions=True)
 
     return asyncio.run(_process(sensors))
+
+
+class BaseRateLimitedForecastInPointProvider(BaseProvider):
+    """
+    Base class for point forecast providers with strict QPS enforcement.
+    Uses asyncio throughout — no subprocess overhead. All sensor coroutines
+    are launched concurrently but each acquires a token from AsyncLimiter
+    before issuing the HTTP request, capping throughput at `qps` req/s.
+    """
+
+    def __init__(self, sensors: list[Sensor], qps: float, **kwargs):
+        super().__init__(**kwargs)
+        self.sensors = sensors
+        self._limiter = AsyncLimiter(max_rate=qps, time_period=1)
+        console.log(f"Requesting forecast for {len(self.sensors)} sensors at {qps} QPS")
+
+    @abstractmethod
+    async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
+        raise NotImplementedError("Getting JSON forecast in point was not implemented")
+
+    async def _process_sensor(self, sensor: Sensor, snapshot_path: str) -> Response:
+        async with self._limiter:
+            resp = await self.get_json_forecast_in_point(sensor.lon, sensor.lat)
+
+        if resp.ok:
+            try:
+                file_mode = "w" if isinstance(resp.payload, str) else "wb"
+                with open(os.path.join(snapshot_path, f"{sensor.id}.json"), file_mode) as f:
+                    f.write(resp.payload)
+            except Exception as ex:
+                console.log(f"Failed to process sensor {sensor.id}: {ex}")
+                resp.set_failed()
+        else:
+            console.log(f"Wasn't able to get data for {sensor.id}")
+
+        return resp
+
+    @override
+    async def fetch_job(self, timestamp: int):
+        snapshot_path = self.snapshot_path(timestamp)
+        tasks = [self._process_sensor(s, snapshot_path) for s in self.sensors]
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+        self.save_fetching_report(folder=snapshot_path,
+                                  targets=[s.id for s in self.sensors],
+                                  coords=[f"lat:{s.lat} lon:{s.lon}" for s in self.sensors],
+                                  statuses=[r.ok for r in responses],
+                                  codes=[r.status for r in responses])
 
 
 class BaseForecastInPointProvider(BaseParallelExecutionProvider):

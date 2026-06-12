@@ -2,6 +2,7 @@ import argparse
 import asyncio
 
 from forecast.providers.accuweather import AccuWeather
+from forecast.providers.foreca import Foreca
 from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
@@ -158,6 +159,20 @@ def _create_rainviewer(args: argparse.Namespace) -> RainViewer:
                       token=args.token, zoom=args.zoom)
 
 
+def _create_foreca(args: argparse.Namespace) -> Foreca:
+    publisher = _create_publisher(args)
+    sensors = Sensor.from_csv(sensors_path=args.sensors,
+                              include_countries=args.include_countries)
+
+    return Foreca(download_path=args.download_path,
+                  publisher=publisher,
+                  frequency=args.download_period,
+                  token=args.token,
+                  product=args.product,
+                  qps=args.qps,
+                  sensors=sensors)
+
+
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
     publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
@@ -283,10 +298,21 @@ if __name__ == "__main__":
     rainbow_parser = subparser.add_parser("rainbow", help="Rainbow")
     _add_sensors_params(rainbow_parser)
     rainbow_parser.add_argument("--token", type=str, required=True, help="Token to access Rainbow API")
-    rainbow_parser.add_argument("--layer", type=str, required=False, default="precip",
-                                choices=Rainbow.API_PRECIP_LAYERS,
+    rainbow_parser.add_argument("--product", type=str, required=False, default="nowcast-precip",
+                                choices=Rainbow.API_PRODUCTS,
                                 help=f"Rainbow API precip layer. Values of {Rainbow.API_PRECIP_LAYERS}")
     rainbow_parser.set_defaults(func=_create_rainbow)
+
+    # Foreca
+    foreca_parser = subparser.add_parser("foreca", help="Foreca")
+    _add_sensors_params(foreca_parser)
+    foreca_parser.add_argument("--token", type=str, required=True, help="Bearer token for Foreca API")
+    foreca_parser.add_argument("--product", type=str, required=False, default="nowcast-short",
+                               choices=Foreca.API_PRODUCTS,
+                               help=f"Foreca API product. One of {Foreca.API_PRODUCTS}")
+    foreca_parser.add_argument("--qps", type=float, required=False, default=1.0,
+                               help="Maximum queries per second (Foreca rate limit)")
+    foreca_parser.set_defaults(func=_create_foreca)
 
     # WeatherCompany
     weathercompany_parser = subparser.add_parser("weathercompany", help="WeatherCompany")
