@@ -27,7 +27,7 @@ class RequestInterface():
 
     async def _run_with_retries(self,
                                 do_request: Callable[[], Awaitable[Response]],
-                                n: int = 5) -> Response:
+                                n: int = 1) -> Response:
         for _ in range(n):
             resp = await do_request()
             if resp.payload is not None:
@@ -62,7 +62,7 @@ class RequestInterface():
 
                 except Exception as e:
                     return Response()
-            return await _try_download()
+            return await self._run_with_retries(_try_download)
 
     async def _native_post(self, url: str,
                            headers: dict[str, str] | None = None,
@@ -88,4 +88,4 @@ class RequestInterface():
                 except Exception as e:
                     return Response()
 
-            return await _try_download()
+            return await self._run_with_retries(_try_download)

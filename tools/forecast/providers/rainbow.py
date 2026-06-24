@@ -33,4 +33,4 @@ class Rainbow(BaseForecastInPointProvider, RequestInterface):
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
-        return await self._native_get(url=self.get_location_url(lon, lat))
+        return await self._native_get(url=self._get_location_url(lon, lat))
