@@ -144,7 +144,7 @@ def _create_rainbow(args: argparse.Namespace) -> Rainbow:
                    chunk_size=args.chunk_size,
                    frequency=args.download_period,
                    token=args.token,
-                   layer=args.layer,
+                   product=args.product,
                    sensors=sensors)
 
 
@@ -300,17 +300,17 @@ if __name__ == "__main__":
     rainbow_parser.add_argument("--token", type=str, required=True, help="Token to access Rainbow API")
     rainbow_parser.add_argument("--product", type=str, required=False, default="nowcast-precip",
                                 choices=Rainbow.API_PRODUCTS,
-                                help=f"Rainbow API precip layer. Values of {Rainbow.API_PRECIP_LAYERS}")
+                                help=f"Rainbow API product. Values of {Rainbow.API_PRODUCTS}")
     rainbow_parser.set_defaults(func=_create_rainbow)
 
     # Foreca
     foreca_parser = subparser.add_parser("foreca", help="Foreca")
     _add_sensors_params(foreca_parser)
     foreca_parser.add_argument("--token", type=str, required=True, help="Bearer token for Foreca API")
-    foreca_parser.add_argument("--product", type=str, required=False, default="nowcast-short",
+    foreca_parser.add_argument("--product", type=str, required=False, default="nowcast-long",
                                choices=Foreca.API_PRODUCTS,
                                help=f"Foreca API product. One of {Foreca.API_PRODUCTS}")
-    foreca_parser.add_argument("--qps", type=float, required=False, default=1.0,
+    foreca_parser.add_argument("--qps", type=float, required=True,
                                help="Maximum queries per second (Foreca rate limit)")
     foreca_parser.set_defaults(func=_create_foreca)
 

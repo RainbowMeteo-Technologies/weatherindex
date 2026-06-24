@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./.volume/accuweather/:/storage/
-      - ./world_sensors.csv:/sensors.csv
+      - ./.sensors/global_sensors.csv:/sensors.csv
     command: |
       python -m forecast
       --download-path /storage
@@ -21,6 +21,26 @@ services:
       accuweather
       --sensors /sensors.csv
       --token ${ACCUWEATHER_TOKEN}
+  
+  foreca-downloader:
+    profiles:
+      - foreca
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/foreca/:/storage/
+      - ./.sensors/global_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_FORECA}
+      --download-period 600
+      foreca
+      --sensors /sensors.csv
+      --qps 40
+      --token ${FORECA_TOKEN}
 
   vaisala-downloader:
     profiles:
@@ -31,7 +51,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./.volume/vaisala/:/storage/
-      - ./world_sensors.csv:/sensors.csv
+      - ./.sensors/global_sensors.csv:/sensors.csv
     command: |
       python -m forecast
       --download-path /storage
@@ -72,7 +92,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./.volume/rainbow/:/storage/
-      - ./world_sensors.csv:/sensors.csv
+      - ./.sensors/global_sensors.csv:/sensors.csv
     command: |
       python -m forecast
       --download-path /storage
@@ -93,7 +113,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./.volume/weathercompany/:/storage/
-      - ./world_sensors.csv:/sensors.csv
+      - ./.sensors/global_sensors.csv:/sensors.csv
     command: |
       python -m forecast
       --download-path /storage
@@ -113,7 +133,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./.volume/tomorrow/6hours/:/storage/
-      - ./world_sensors.csv:/sensors.csv
+      - ./.sensors/global_sensors.csv:/sensors.csv
     ports:
       - "9004:9000"
     command: |

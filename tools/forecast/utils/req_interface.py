@@ -62,7 +62,7 @@ class RequestInterface():
 
                 except Exception as e:
                     return Response()
-            return await self._run_with_retries(_try_download)
+            return await _try_download()
 
     async def _native_post(self, url: str,
                            headers: dict[str, str] | None = None,
@@ -88,4 +88,4 @@ class RequestInterface():
                 except Exception as e:
                     return Response()
 
-            return await self._run_with_retries(_try_download)
+            return await _try_download()
