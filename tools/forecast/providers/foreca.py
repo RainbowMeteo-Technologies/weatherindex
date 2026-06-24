@@ -27,7 +27,7 @@ class Foreca(BaseRateLimitedForecastInPointProvider, RequestInterface):
 
     @override
     async def get_json_forecast_in_point(self, lon: float, lat: float) -> Response:
-        resp = await self._native_get(url=self._get_location_url(lon, lat),
+        resp = await self._native_get(url=f"{self._get_location_url(lon, lat)}?dataset=full",
                                       headers={"Authorization": f"Bearer {self.token}"})
         if resp.ok:
             resp.payload = json.dumps({
