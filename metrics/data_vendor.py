@@ -13,5 +13,6 @@ class DataVendor(BaseDataVendor, Enum):
     RainbowAi = "rainbowai"
     RainViewer = "rainviewer"
     WeatherCompany = "weathercompany"
+    Foreca = "foreca"
 
     Metar = "metar"
