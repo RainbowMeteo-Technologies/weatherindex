@@ -39,7 +39,7 @@ services:
       --download-period 600
       foreca
       --sensors /sensors.csv
-      --qps 40
+      --qps 35
       --token ${FORECA_TOKEN}
 
   vaisala-downloader:
