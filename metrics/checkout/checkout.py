@@ -196,6 +196,9 @@ class CheckoutExecutor:
             DataSource.create(vendor="weathercompany", s3_uri=forecasts_info.s3_uri_weathercompany,
                               data_folder=os.path.join(self._session.data_folder, DataVendor.WeatherCompany.value),
                               period=constants.WEATHERCOMPANY_PERIOD),
+            DataSource.create(vendor="foreca", s3_uri=forecasts_info.s3_uri_foreca,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Foreca.value),
+                              period=constants.FORECA_PERIOD),
         ]
 
     def observation_sources_list(self, observations_info: ObservationSourcesInfo) -> typing.List["DataSource"]:

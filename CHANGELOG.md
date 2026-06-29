@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.3.3`
+- Support Rainbow Weather Forecast downloader
+- Support Foreca forecast downloader (minutely and 15-minutely nowcast)
+
 ## `0.3.2`
 - Support for downloading TWC forecast precipitation
 
