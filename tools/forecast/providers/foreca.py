@@ -25,7 +25,7 @@ class Foreca(BaseRateLimitedForecastInPointProvider, RequestInterface):
         super().__init__(*args, **kwargs)
         self.token = token
         self.endpoint = self._API_PRODUCT_ENDPOINT_MAPPING[product]
-    
+
     async def rate_limit_aware_get(self, url: str, headers: dict[str, str]) -> Response:
         resp = Response()
 
@@ -40,11 +40,11 @@ class Foreca(BaseRateLimitedForecastInPointProvider, RequestInterface):
             if resp.headers:
                 for key, value in resp.headers.items():
                     if key.lower() == "retry-after":
-                        time_to_sleep = value
+                        time_to_sleep = float(value)
 
             if time_to_sleep is not None:
-                console.log(f"Rate limit exceeded. Waiting for {time_to_sleep.total_seconds()} seconds.")
-                await asyncio.sleep(time_to_sleep.total_seconds())
+                console.log(f"Rate limit exceeded. Waiting for {time_to_sleep} seconds.")
+                await asyncio.sleep(time_to_sleep)
             else:
                 break
 
