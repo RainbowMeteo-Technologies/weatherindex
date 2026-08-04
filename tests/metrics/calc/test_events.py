@@ -36,7 +36,7 @@ class TestWorker:
 
         worker.run()
 
-        worker._dump_frame.assert_called_once()
+        assert worker._dump_frame.call_count == 3
 
     @pytest.mark.parametrize("files_list, time_range, expected_files_list", [
         (
@@ -268,7 +268,7 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_times,
                                    observations=observations,
-                                   forecast=forecast)
+                                   forecast=forecast).metrics
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
 
@@ -280,6 +280,30 @@ class TestWorker:
         for metric in ["tp", "tn", "fp", "fn"]:
             assert (merged_result[f"{metric}_expected"] ==
                     merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
+
+    def test_calculate_exports_unmatched_rows(self):
+        from metrics.calc.evaluators import get_evaluator
+
+        worker = create_worker(forecast_offsets=[0], evaluator=get_evaluator("ignore_precip_type"))
+
+        observations = create_observations([("matched", 0.0, PrecipitationType.RAIN.value, timestamp(0)),
+                                            ("obs_only", 1.0, PrecipitationType.RAIN.value, timestamp(0))])
+        forecast = create_forecast([("matched", 0.0, PrecipitationType.RAIN.value, timestamp(0), 0),
+                                    ("forecast_only", 2.0, PrecipitationType.RAIN.value, timestamp(0), 0)])
+
+        result = worker._calculate(forecast_times=[0],
+                                   observations=observations,
+                                   forecast=forecast)
+
+        assert set(result.metrics["id"]) == {"matched"}
+        assert set(result.forecasts["id"]) == {"matched", "forecast_only"}
+        assert set(result.observations["id"]) == {"matched", "obs_only"}
+        assert list(result.forecasts.columns) == list(forecast.columns)
+        assert list(result.observations.columns) == list(observations.columns)
+        assert "forecasted_precip" not in result.forecasts.columns
+        assert "observed_precip" not in result.observations.columns
+        assert result.forecasts.loc[result.forecasts["id"] == "forecast_only", "precip_rate"].iloc[0] == 2.0
+        assert result.observations.loc[result.observations["id"] == "obs_only", "precip_rate"].iloc[0] == 1.0
 
 
 class TestCalculateMetrics:

@@ -9,9 +9,17 @@ import uuid
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
+from metrics.calc.unmerged_export import (FORECAST_EXPORT_COLUMNS,
+                                          FORECAST_PARTIAL_PREFIX,
+                                          FORECASTS_DIR_NAME,
+                                          OBSERVATION_EXPORT_COLUMNS,
+                                          OBSERVATION_PARTIAL_PREFIX,
+                                          OBSERVATIONS_DIR_NAME,
+)
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
@@ -22,6 +30,12 @@ from tqdm import tqdm
 
 
 console = Console()
+
+
+class CalculateOutput(NamedTuple):
+    metrics: pandas.DataFrame
+    forecasts: pandas.DataFrame
+    observations: pandas.DataFrame
 
 
 @dataclass
@@ -161,17 +175,19 @@ class Worker:
 
         console.log(f"Calculating metrics for {self._params.time_range}...")
 
-        calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
-                                           observations=sensor_observations,
-                                           forecast=forecast)
+        calculated = self._calculate(forecast_times=self._params.forecast_offsets,
+                                     observations=sensor_observations,
+                                     forecast=forecast)
 
-        self._dump_frame(calculated_frame)
+        file_id = uuid.uuid4().hex
+        self._dump_frame(calculated.metrics, filename=f"{file_id}.csv")
+        self._dump_frame(calculated.forecasts, filename=f"{FORECAST_PARTIAL_PREFIX}{file_id}.csv")
+        self._dump_frame(calculated.observations, filename=f"{OBSERVATION_PARTIAL_PREFIX}{file_id}.csv")
 
-    def _dump_frame(self, frame: pandas.DataFrame):
+    def _dump_frame(self, frame: pandas.DataFrame, filename: typing.Optional[str] = None):
 
         os.makedirs(self._params.output_path, exist_ok=True)
-        frame.to_csv(os.path.join(self._params.output_path,
-                                  f"{uuid.uuid4().hex}.csv"),
+        frame.to_csv(os.path.join(self._params.output_path, filename or f"{uuid.uuid4().hex}.csv"),
                      index=False)
 
     def _align_time_column(self, data: pandas.DataFrame,
@@ -203,9 +219,11 @@ class Worker:
     def _calculate(self,
                    forecast_times: typing.List[int],
                    observations: pandas.DataFrame,
-                   forecast: pandas.DataFrame) -> pandas.DataFrame:
+                   forecast: pandas.DataFrame) -> CalculateOutput:
         """Implements calculation of metrics. This function takes two tables: observation, forecast.
         Data in both tables resampled by 10 minutes (using max value of precip_rate).
+
+        Also builds unmerged forecast/observation exports.
 
         Parameters
         ----------
@@ -218,9 +236,13 @@ class Worker:
 
         Returns
         -------
-        pandas.DataFrame
-            Calculated metrics for each forecast offset per sensor ID & timestamp
+        CalculateOutput
+            Calculated metrics for each forecast offset per sensor ID & timestamp,
+            plus unmerged forecast and observation tables.
         """
+        forecast_export = forecast.copy()
+        observation_export = observations.copy()
+
         observations = observations.sort_values(by=["id", "timestamp"])
         observations = observations.drop_duplicates(subset=["id", "timestamp"], keep="first")
 
@@ -314,7 +336,9 @@ class Worker:
                     f"session_path - {self._params.session_path}):\n"
                     f"{result_metrics}")
 
-        return result_metrics
+        return CalculateOutput(metrics=result_metrics,
+                               forecasts=forecast_export,
+                               observations=observation_export)
 
 
 def _process_time_range(params: JobParams):
@@ -434,9 +458,18 @@ class CalculateMetrics:
                 pass
 
         frames = []
+        forecast_frames = []
+        observation_frames = []
         for filename in os.listdir(self.partial_metrics_dir):
-            if filename.endswith(".csv"):
-                frames.append(pandas.read_csv(os.path.join(self.partial_metrics_dir, filename)))
+            if not filename.endswith(".csv"):
+                continue
+            frame_path = os.path.join(self.partial_metrics_dir, filename)
+            if filename.startswith(FORECAST_PARTIAL_PREFIX):
+                forecast_frames.append(pandas.read_csv(frame_path))
+            elif filename.startswith(OBSERVATION_PARTIAL_PREFIX):
+                observation_frames.append(pandas.read_csv(frame_path))
+            else:
+                frames.append(pandas.read_csv(frame_path))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")
@@ -450,6 +483,27 @@ class CalculateMetrics:
                                                        "forecasted_precip", "observed_precip",
                                                        "tp", "fp", "tn", "fn"])
         final_metrics.to_csv(self.metrics_path, index=False)
+
+        forecasts_dir = os.path.join(self._session.metrics_folder, FORECASTS_DIR_NAME)
+        observations_dir = os.path.join(self._session.metrics_folder, OBSERVATIONS_DIR_NAME)
+        os.makedirs(forecasts_dir, exist_ok=True)
+        os.makedirs(observations_dir, exist_ok=True)
+
+        final_forecasts = concat_frames(forecast_frames, columns=FORECAST_EXPORT_COLUMNS)
+        forecast_path = os.path.join(forecasts_dir, f"{self._forecast_vendor.value}.csv")
+        if os.path.exists(forecast_path):
+            existing_forecasts = pandas.read_csv(forecast_path)
+            final_forecasts = concat_frames(
+                [existing_forecasts, final_forecasts], columns=FORECAST_EXPORT_COLUMNS)
+        final_forecasts.to_csv(forecast_path, index=False)
+
+        final_observations = concat_frames(observation_frames, columns=OBSERVATION_EXPORT_COLUMNS)
+        observation_path = os.path.join(observations_dir, f"{self._observation_vendor.value}.csv")
+        if os.path.exists(observation_path):
+            existing_observations = pandas.read_csv(observation_path)
+            final_observations = concat_frames(
+                [existing_observations, final_observations], columns=OBSERVATION_EXPORT_COLUMNS)
+        final_observations.to_csv(observation_path, index=False)
 
         shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
 
