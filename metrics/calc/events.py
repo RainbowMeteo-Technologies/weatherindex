@@ -63,6 +63,8 @@ class JobParams:
     session_path: str
     time_range: typing.Tuple[int, int]
     output_path: str
+    forecasts_output_path: str
+    observations_output_path: str
     evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]]
     observations_offset: int = 0
     group_period: int = 600
@@ -177,10 +179,10 @@ class Worker:
                          output_dir=self._params.output_path)
         self._dump_frame(forecast,
                          filename=f"{file_id}.csv",
-                         output_dir=f"{self._params.output_path}_{FORECAST_PARTIAL_DIR}")
+                         output_dir=self._params.forecasts_output_path)
         self._dump_frame(sensor_observations,
                          filename=f"{file_id}.csv",
-                         output_dir=f"{self._params.output_path}_{OBSERVATION_PARTIAL_DIR}")
+                         output_dir=self._params.observations_output_path)
 
     def _dump_frame(self,
                     frame: pandas.DataFrame,
@@ -397,6 +399,16 @@ class CalculateMetrics:
         return os.path.join(self._session.metrics_folder,
                             f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
 
+    @property
+    def partial_forecasts_dir(self) -> str:
+        return os.path.join(self._session.metrics_folder,
+                            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{FORECAST_PARTIAL_DIR}")
+
+    @property
+    def partial_observations_dir(self) -> str:
+        return os.path.join(self._session.metrics_folder,
+                            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{OBSERVATION_PARTIAL_DIR}")
+
     def _calc_sensors_range(self) -> typing.Tuple[int, int]:
         """Calculates aligned sensors range based on session start/end time
 
@@ -437,7 +449,9 @@ class CalculateMetrics:
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
                                   forecast_manager_cls=self._forecast_manager_cls,
-                                  output_path=self.partial_metrics_dir))
+                                  output_path=self.partial_metrics_dir,
+                                  forecasts_output_path=self.partial_forecasts_dir,
+                                  observations_output_path=self.partial_observations_dir))
 
         return [functools.partial(_process_time_range, params=job) for job in jobs]
 
@@ -455,23 +469,20 @@ class CalculateMetrics:
         forecast_frames = []
         observation_frames = []
 
-        forecasts_partial_dir = f"{self.partial_metrics_dir}_{FORECAST_PARTIAL_DIR}"
-        observations_partial_dir = f"{self.partial_metrics_dir}_{OBSERVATION_PARTIAL_DIR}"
-
         for filename in os.listdir(self.partial_metrics_dir):
             frame_path = os.path.join(self.partial_metrics_dir, filename)
             if os.path.isfile(frame_path) and filename.endswith(".csv"):
                 frames.append(pandas.read_csv(frame_path))
 
-        for filename in os.listdir(forecasts_partial_dir):
+        for filename in os.listdir(self.partial_forecasts_dir):
             if filename.endswith(".csv"):
                 forecast_frames.append(
-                    pandas.read_csv(os.path.join(forecasts_partial_dir, filename)))
+                    pandas.read_csv(os.path.join(self.partial_forecasts_dir, filename)))
 
-        for filename in os.listdir(observations_partial_dir):
+        for filename in os.listdir(self.partial_observations_dir):
             if filename.endswith(".csv"):
                 observation_frames.append(
-                    pandas.read_csv(os.path.join(observations_partial_dir, filename)))
+                    pandas.read_csv(os.path.join(self.partial_observations_dir, filename)))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")
@@ -508,8 +519,8 @@ class CalculateMetrics:
         final_observations.to_csv(observation_path, index=False)
 
         shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
-        shutil.rmtree(forecasts_partial_dir, ignore_errors=True)
-        shutil.rmtree(observations_partial_dir, ignore_errors=True)
+        shutil.rmtree(self.partial_forecasts_dir, ignore_errors=True)
+        shutil.rmtree(self.partial_observations_dir, ignore_errors=True)
 
 
 def calc_events(session_path: str,
