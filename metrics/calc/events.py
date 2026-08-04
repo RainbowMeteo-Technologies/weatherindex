@@ -401,13 +401,15 @@ class CalculateMetrics:
 
     @property
     def partial_forecasts_dir(self) -> str:
-        return os.path.join(self._session.metrics_folder,
-                            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{FORECAST_PARTIAL_DIR}")
+        return os.path.join(
+            self._session.metrics_folder,
+            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{FORECAST_PARTIAL_DIR}")
 
     @property
     def partial_observations_dir(self) -> str:
-        return os.path.join(self._session.metrics_folder,
-                            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{OBSERVATION_PARTIAL_DIR}")
+        return os.path.join(
+            self._session.metrics_folder,
+            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{OBSERVATION_PARTIAL_DIR}")
 
     def _calc_sensors_range(self) -> typing.Tuple[int, int]:
         """Calculates aligned sensors range based on session start/end time
