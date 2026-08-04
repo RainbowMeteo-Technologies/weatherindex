@@ -18,8 +18,7 @@ from metrics.calc.unmerged_export import (FORECAST_EXPORT_COLUMNS,
                                           FORECASTS_DIR_NAME,
                                           OBSERVATION_EXPORT_COLUMNS,
                                           OBSERVATION_PARTIAL_PREFIX,
-                                          OBSERVATIONS_DIR_NAME,
-)
+                                          OBSERVATIONS_DIR_NAME)
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
