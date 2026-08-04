@@ -9,16 +9,15 @@ import uuid
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import NamedTuple
 
 from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
-from metrics.calc.unmerged_export import (FORECAST_EXPORT_COLUMNS,
-                                          FORECAST_PARTIAL_PREFIX,
-                                          FORECASTS_DIR_NAME,
-                                          OBSERVATION_EXPORT_COLUMNS,
-                                          OBSERVATION_PARTIAL_PREFIX,
-                                          OBSERVATIONS_DIR_NAME)
+from metrics.constants import (FORECAST_EXPORT_COLUMNS,
+                               FORECAST_PARTIAL_DIR,
+                               FORECASTS_DIR_NAME,
+                               OBSERVATION_EXPORT_COLUMNS,
+                               OBSERVATION_PARTIAL_DIR,
+                               OBSERVATIONS_DIR_NAME)
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
@@ -29,12 +28,6 @@ from tqdm import tqdm
 
 
 console = Console()
-
-
-class CalculateOutput(NamedTuple):
-    metrics: pandas.DataFrame
-    forecasts: pandas.DataFrame
-    observations: pandas.DataFrame
 
 
 @dataclass
@@ -174,21 +167,27 @@ class Worker:
 
         console.log(f"Calculating metrics for {self._params.time_range}...")
 
-        calculated = self._calculate(forecast_times=self._params.forecast_offsets,
-                                     observations=sensor_observations,
-                                     forecast=forecast)
+        calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
+                                           observations=sensor_observations,
+                                           forecast=forecast)
 
         file_id = uuid.uuid4().hex
-        self._dump_frame(calculated.metrics, filename=f"{file_id}.csv")
-        self._dump_frame(calculated.forecasts, filename=f"{FORECAST_PARTIAL_PREFIX}{file_id}.csv")
-        self._dump_frame(calculated.observations, filename=f"{OBSERVATION_PARTIAL_PREFIX}{file_id}.csv")
+        self._dump_frame(calculated_frame, filename=f"{file_id}.csv")
+        self._dump_frame(forecast, filename=f"{file_id}.csv", subdir=FORECAST_PARTIAL_DIR)
+        self._dump_frame(sensor_observations, filename=f"{file_id}.csv", subdir=OBSERVATION_PARTIAL_DIR)
 
-    def _dump_frame(self, frame: pandas.DataFrame, filename: typing.Optional[str] = None):
+    def _dump_frame(self,
+                    frame: pandas.DataFrame,
+                    filename: typing.Optional[str] = None,
+                    subdir: typing.Optional[str] = None):
 
-        os.makedirs(self._params.output_path, exist_ok=True)
+        output_dir = self._params.output_path
+        if subdir is not None:
+            output_dir = os.path.join(output_dir, subdir)
+        os.makedirs(output_dir, exist_ok=True)
         if filename is None:
             filename = f"{uuid.uuid4().hex}.csv"
-        frame.to_csv(os.path.join(self._params.output_path, filename), index=False)
+        frame.to_csv(os.path.join(output_dir, filename), index=False)
 
     def _align_time_column(self, data: pandas.DataFrame,
                            column_name: str,
@@ -219,11 +218,9 @@ class Worker:
     def _calculate(self,
                    forecast_times: typing.List[int],
                    observations: pandas.DataFrame,
-                   forecast: pandas.DataFrame) -> CalculateOutput:
+                   forecast: pandas.DataFrame) -> pandas.DataFrame:
         """Implements calculation of metrics. This function takes two tables: observation, forecast.
         Data in both tables resampled by 10 minutes (using max value of precip_rate).
-
-        Also builds unmerged forecast/observation exports.
 
         Parameters
         ----------
@@ -236,13 +233,9 @@ class Worker:
 
         Returns
         -------
-        CalculateOutput
-            Calculated metrics for each forecast offset per sensor ID & timestamp,
-            plus unmerged forecast and observation tables.
+        pandas.DataFrame
+            Calculated metrics for each forecast offset per sensor ID & timestamp
         """
-        forecast_export = forecast.copy()
-        observation_export = observations.copy()
-
         observations = observations.sort_values(by=["id", "timestamp"])
         observations = observations.drop_duplicates(subset=["id", "timestamp"], keep="first")
 
@@ -336,9 +329,7 @@ class Worker:
                     f"session_path - {self._params.session_path}):\n"
                     f"{result_metrics}")
 
-        return CalculateOutput(metrics=result_metrics,
-                               forecasts=forecast_export,
-                               observations=observation_export)
+        return result_metrics
 
 
 def _process_time_range(params: JobParams):
@@ -460,16 +451,24 @@ class CalculateMetrics:
         frames = []
         forecast_frames = []
         observation_frames = []
+
+        partial_forecasts_dir = os.path.join(self.partial_metrics_dir, FORECAST_PARTIAL_DIR)
+        partial_observations_dir = os.path.join(self.partial_metrics_dir, OBSERVATION_PARTIAL_DIR)
+
         for filename in os.listdir(self.partial_metrics_dir):
-            if not filename.endswith(".csv"):
-                continue
             frame_path = os.path.join(self.partial_metrics_dir, filename)
-            if filename.startswith(FORECAST_PARTIAL_PREFIX):
-                forecast_frames.append(pandas.read_csv(frame_path))
-            elif filename.startswith(OBSERVATION_PARTIAL_PREFIX):
-                observation_frames.append(pandas.read_csv(frame_path))
-            else:
+            if os.path.isfile(frame_path) and filename.endswith(".csv"):
                 frames.append(pandas.read_csv(frame_path))
+
+        for filename in os.listdir(partial_forecasts_dir):
+            if filename.endswith(".csv"):
+                forecast_frames.append(
+                    pandas.read_csv(os.path.join(partial_forecasts_dir, filename)))
+
+        for filename in os.listdir(partial_observations_dir):
+            if filename.endswith(".csv"):
+                observation_frames.append(
+                    pandas.read_csv(os.path.join(partial_observations_dir, filename)))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")

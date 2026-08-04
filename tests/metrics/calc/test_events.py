@@ -268,7 +268,7 @@ class TestWorker:
 
         result = worker._calculate(forecast_times=forecast_times,
                                    observations=observations,
-                                   forecast=forecast).metrics
+                                   forecast=forecast)
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
 
@@ -281,7 +281,7 @@ class TestWorker:
             assert (merged_result[f"{metric}_expected"] ==
                     merged_result[f"{metric}_result"]).all(), f"Mismatch found in {metric}"
 
-    def test_calculate_exports_unmatched_rows(self):
+    def test_calculate_excludes_unmatched_from_metrics(self):
         from metrics.calc.evaluators import get_evaluator
 
         worker = create_worker(forecast_offsets=[0], evaluator=get_evaluator("ignore_precip_type"))
@@ -295,15 +295,9 @@ class TestWorker:
                                    observations=observations,
                                    forecast=forecast)
 
-        assert set(result.metrics["id"]) == {"matched"}
-        assert set(result.forecasts["id"]) == {"matched", "forecast_only"}
-        assert set(result.observations["id"]) == {"matched", "obs_only"}
-        assert list(result.forecasts.columns) == list(forecast.columns)
-        assert list(result.observations.columns) == list(observations.columns)
-        assert "forecasted_precip" not in result.forecasts.columns
-        assert "observed_precip" not in result.observations.columns
-        assert result.forecasts.loc[result.forecasts["id"] == "forecast_only", "precip_rate"].iloc[0] == 2.0
-        assert result.observations.loc[result.observations["id"] == "obs_only", "precip_rate"].iloc[0] == 1.0
+        assert set(result["id"]) == {"matched"}
+        assert "forecast_only" not in set(result["id"])
+        assert "obs_only" not in set(result["id"])
 
 
 class TestCalculateMetrics:
