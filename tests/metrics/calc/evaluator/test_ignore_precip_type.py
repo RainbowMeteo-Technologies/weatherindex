@@ -44,7 +44,7 @@ class TestIgnorePrecipTypeEvaluator:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast).metrics
+                                   forecast=forecast)
 
         merged_result = pandas.merge(expected_metrics,
                                      result,
@@ -85,7 +85,7 @@ class TestIgnorePrecipTypeEvaluator:
 
         result = worker._calculate(forecast_times=forecast_offsets,
                                    observations=observations,
-                                   forecast=forecast).metrics
+                                   forecast=forecast)
 
         result = result.groupby(["forecast_time"])[["tp", "tn", "fp", "fn"]].sum().reset_index()
         result["precision"] = result[["tp", "fp"]].apply(lambda row: precision(row["tp"], row["fp"]), axis=1)
