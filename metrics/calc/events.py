@@ -172,18 +172,21 @@ class Worker:
                                            forecast=forecast)
 
         file_id = uuid.uuid4().hex
-        self._dump_frame(calculated_frame, filename=f"{file_id}.csv")
-        self._dump_frame(forecast, filename=f"{file_id}.csv", subdir=FORECAST_PARTIAL_DIR)
-        self._dump_frame(sensor_observations, filename=f"{file_id}.csv", subdir=OBSERVATION_PARTIAL_DIR)
+        self._dump_frame(calculated_frame,
+                         filename=f"{file_id}.csv",
+                         output_dir=self._params.output_path)
+        self._dump_frame(forecast,
+                         filename=f"{file_id}.csv",
+                         output_dir=f"{self._params.output_path}_{FORECAST_PARTIAL_DIR}")
+        self._dump_frame(sensor_observations,
+                         filename=f"{file_id}.csv",
+                         output_dir=f"{self._params.output_path}_{OBSERVATION_PARTIAL_DIR}")
 
     def _dump_frame(self,
                     frame: pandas.DataFrame,
-                    filename: typing.Optional[str] = None,
-                    subdir: typing.Optional[str] = None):
+                    output_dir: str,
+                    filename: typing.Optional[str] = None):
 
-        output_dir = self._params.output_path
-        if subdir is not None:
-            output_dir = os.path.join(output_dir, subdir)
         os.makedirs(output_dir, exist_ok=True)
         if filename is None:
             filename = f"{uuid.uuid4().hex}.csv"
@@ -452,23 +455,23 @@ class CalculateMetrics:
         forecast_frames = []
         observation_frames = []
 
-        partial_forecasts_dir = os.path.join(self.partial_metrics_dir, FORECAST_PARTIAL_DIR)
-        partial_observations_dir = os.path.join(self.partial_metrics_dir, OBSERVATION_PARTIAL_DIR)
+        forecasts_partial_dir = f"{self.partial_metrics_dir}_{FORECAST_PARTIAL_DIR}"
+        observations_partial_dir = f"{self.partial_metrics_dir}_{OBSERVATION_PARTIAL_DIR}"
 
         for filename in os.listdir(self.partial_metrics_dir):
             frame_path = os.path.join(self.partial_metrics_dir, filename)
             if os.path.isfile(frame_path) and filename.endswith(".csv"):
                 frames.append(pandas.read_csv(frame_path))
 
-        for filename in os.listdir(partial_forecasts_dir):
+        for filename in os.listdir(forecasts_partial_dir):
             if filename.endswith(".csv"):
                 forecast_frames.append(
-                    pandas.read_csv(os.path.join(partial_forecasts_dir, filename)))
+                    pandas.read_csv(os.path.join(forecasts_partial_dir, filename)))
 
-        for filename in os.listdir(partial_observations_dir):
+        for filename in os.listdir(observations_partial_dir):
             if filename.endswith(".csv"):
                 observation_frames.append(
-                    pandas.read_csv(os.path.join(partial_observations_dir, filename)))
+                    pandas.read_csv(os.path.join(observations_partial_dir, filename)))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")
@@ -505,6 +508,8 @@ class CalculateMetrics:
         final_observations.to_csv(observation_path, index=False)
 
         shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
+        shutil.rmtree(forecasts_partial_dir, ignore_errors=True)
+        shutil.rmtree(observations_partial_dir, ignore_errors=True)
 
 
 def calc_events(session_path: str,
