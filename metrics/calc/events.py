@@ -186,8 +186,9 @@ class Worker:
     def _dump_frame(self, frame: pandas.DataFrame, filename: typing.Optional[str] = None):
 
         os.makedirs(self._params.output_path, exist_ok=True)
-        frame.to_csv(os.path.join(self._params.output_path, filename or f"{uuid.uuid4().hex}.csv"),
-                     index=False)
+        if filename is None:
+            filename = f"{uuid.uuid4().hex}.csv"
+        frame.to_csv(os.path.join(self._params.output_path, filename), index=False)
 
     def _align_time_column(self, data: pandas.DataFrame,
                            column_name: str,
