@@ -48,7 +48,10 @@ class JobParams:
     sensors_path : str
         Path to a directory with sensors data
     time_range : Tuple[int, int]
-        Sensors timestamp range to calculate metrics
+        Forecast timestamp range to load. When ``sensor_time_range`` is unset,
+        also used as the sensors window.
+    sensor_time_range : Tuple[int, int] | None
+        Sensors timestamp range. When set, ``time_range`` is used only for forecasts.
     observations_offset: int
         Offset for observations comparing to forecast (in seconds)
     group_period: int
@@ -67,6 +70,7 @@ class JobParams:
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
+    sensor_time_range: typing.Optional[typing.Tuple[int, int]] = None
 
 
 # MARK: Multiprocess Job
@@ -114,9 +118,16 @@ class Worker:
         sensors_path = None
         sensors_path = os.path.join(session.tables_folder, self._params.observation_vendor.value)
 
-        sensors_start_time, sensors_end_time = self._params.time_range
-        sensors_start_time = sensors_start_time - self._params.group_period
+        if self._params.sensor_time_range is not None:
+            sensors_start_time, sensors_end_time = self._params.sensor_time_range
+            forecast_start_time, forecast_end_time = self._params.time_range
+        else:
+            sensors_start_time, sensors_end_time = self._params.time_range
+            # -1:10, to cover begin of observations with 2 hour forecast
+            forecast_start_time = sensors_start_time - (max(self._params.forecast_offsets) + 4200)
+            forecast_end_time = sensors_end_time
 
+        sensors_start_time = sensors_start_time - self._params.group_period
         sensors_time_range = (sensors_start_time, sensors_end_time)
 
         collected_sensor_files = self._get_sensor_file_list(sensors_time_range=sensors_time_range,
@@ -154,10 +165,6 @@ class Worker:
         console.log(f"Sorting sensors from range {sensors_time_range}")
         sensor_observations = sensor_observations.sort_values(by=["id", "timestamp"])
         sensor_observations = sensor_observations.drop_duplicates(subset=["id", "timestamp"], keep="first")
-
-        forecast_start_time, forecast_end_time = self._params.time_range
-        # -1:10, to cover begin of observations with 2 hour forecast
-        forecast_start_time = forecast_start_time - (max(self._params.forecast_offsets) + 4200)
 
         console.log(f"Loading forecast in range ({forecast_start_time}, {forecast_end_time})...")
 
