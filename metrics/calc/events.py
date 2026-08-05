@@ -13,10 +13,8 @@ from dataclasses import dataclass
 from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
 from metrics.constants import (FORECAST_EXPORT_COLUMNS,
-                               FORECAST_PARTIAL_DIR,
                                FORECASTS_DIR_NAME,
                                OBSERVATION_EXPORT_COLUMNS,
-                               OBSERVATION_PARTIAL_DIR,
                                OBSERVATIONS_DIR_NAME)
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
@@ -401,15 +399,13 @@ class CalculateMetrics:
 
     @property
     def partial_forecasts_dir(self) -> str:
-        return os.path.join(
-            self._session.metrics_folder,
-            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{FORECAST_PARTIAL_DIR}")
+        temp_folder = f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_forecasts"
+        return os.path.join(self._session.metrics_folder, temp_folder)
 
     @property
     def partial_observations_dir(self) -> str:
-        return os.path.join(
-            self._session.metrics_folder,
-            f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_{OBSERVATION_PARTIAL_DIR}")
+        temp_folder = f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_observations"
+        return os.path.join(self._session.metrics_folder, temp_folder)
 
     def _calc_sensors_range(self) -> typing.Tuple[int, int]:
         """Calculates aligned sensors range based on session start/end time
