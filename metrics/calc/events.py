@@ -47,11 +47,10 @@ class JobParams:
         Path to the session directory
     sensors_path : str
         Path to a directory with sensors data
-    time_range : Tuple[int, int]
-        Forecast timestamp range to load. When ``sensor_time_range`` is unset,
-        also used as the sensors window.
-    sensor_time_range : Tuple[int, int] | None
-        Sensors timestamp range. When set, ``time_range`` is used only for forecasts.
+    sensor_time_range : Tuple[int, int]
+        Sensors timestamp range to load
+    forecast_time_range : Tuple[int, int]
+        Forecast timestamp range to load
     observations_offset: int
         Offset for observations comparing to forecast (in seconds)
     group_period: int
@@ -62,7 +61,8 @@ class JobParams:
     sensor_ids: typing.List[str]
     forecast_offsets: typing.List[int]
     session_path: str
-    time_range: typing.Tuple[int, int]
+    sensor_time_range: typing.Tuple[int, int]
+    forecast_time_range: typing.Tuple[int, int]
     output_path: str
     forecasts_output_path: str
     observations_output_path: str
@@ -70,7 +70,6 @@ class JobParams:
     observations_offset: int = 0
     group_period: int = 600
     forecast_manager_cls: typing.Type[ForecastManager] = ForecastManager
-    sensor_time_range: typing.Optional[typing.Tuple[int, int]] = None
 
 
 # MARK: Multiprocess Job
@@ -118,17 +117,11 @@ class Worker:
         sensors_path = None
         sensors_path = os.path.join(session.tables_folder, self._params.observation_vendor.value)
 
-        if self._params.sensor_time_range is not None:
-            sensors_start_time, sensors_end_time = self._params.sensor_time_range
-            forecast_start_time, forecast_end_time = self._params.time_range
-        else:
-            sensors_start_time, sensors_end_time = self._params.time_range
-            # -1:10, to cover begin of observations with 2 hour forecast
-            forecast_start_time = sensors_start_time - (max(self._params.forecast_offsets) + 4200)
-            forecast_end_time = sensors_end_time
-
+        sensors_start_time, sensors_end_time = self._params.sensor_time_range
         sensors_start_time = sensors_start_time - self._params.group_period
         sensors_time_range = (sensors_start_time, sensors_end_time)
+
+        forecast_start_time, forecast_end_time = self._params.forecast_time_range
 
         collected_sensor_files = self._get_sensor_file_list(sensors_time_range=sensors_time_range,
                                                             sensors_path=sensors_path)
@@ -172,7 +165,7 @@ class Worker:
         forecast = data_provider.load_forecast(time_rage=(forecast_start_time, forecast_end_time),
                                                sensors_table=sensor_observations)
 
-        console.log(f"Calculating metrics for {self._params.time_range}...")
+        console.log(f"Calculating metrics for {self._params.forecast_time_range}...")
 
         calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
                                            observations=sensor_observations,
@@ -444,11 +437,16 @@ class CalculateMetrics:
 
         jobs = []
         for timestamp in range(start_time, end_time, self._split_time_range):
+            sensor_time_range = (timestamp, timestamp + self._split_time_range)
+            # -1:10, to cover begin of observations with 2 hour forecast
+            forecast_time_range = (timestamp - (max(self._forecast_offsets) + 4200),
+                                   timestamp + self._split_time_range)
             jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
                                   observation_vendor=self._observation_vendor,
                                   forecast_offsets=self._forecast_offsets,
                                   session_path=self._session_path,
-                                  time_range=(timestamp, timestamp + self._split_time_range),
+                                  sensor_time_range=sensor_time_range,
+                                  forecast_time_range=forecast_time_range,
                                   sensor_ids=selected_sensors_ids,
                                   evaluator=self._evaluator,
                                   observations_offset=self._observations_offset,
