@@ -479,13 +479,11 @@ class CalculateMetrics:
 
         for filename in os.listdir(self.partial_forecasts_dir):
             if filename.endswith(".csv"):
-                forecast_frames.append(
-                    pandas.read_csv(os.path.join(self.partial_forecasts_dir, filename)))
+                forecast_frames.append(pandas.read_csv(os.path.join(self.partial_forecasts_dir, filename)))
 
         for filename in os.listdir(self.partial_observations_dir):
             if filename.endswith(".csv"):
-                observation_frames.append(
-                    pandas.read_csv(os.path.join(self.partial_observations_dir, filename)))
+                observation_frames.append(pandas.read_csv(os.path.join(self.partial_observations_dir, filename)))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")
