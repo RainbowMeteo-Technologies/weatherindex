@@ -439,14 +439,14 @@ class CalculateMetrics:
         for timestamp in range(start_time, end_time, self._split_time_range):
             sensor_time_range = (timestamp, timestamp + self._split_time_range)
             # -1:10, to cover begin of observations with 2 hour forecast
-            forecast_time_range = (timestamp - (max(self._forecast_offsets) + 4200),
-                                   timestamp + self._split_time_range)
+            forecast_range_start, forecast_range_end = sensor_time_range
+            forecast_range_start = forecast_range_start - (max(self._forecast_offsets) + 4200)
             jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
                                   observation_vendor=self._observation_vendor,
                                   forecast_offsets=self._forecast_offsets,
                                   session_path=self._session_path,
                                   sensor_time_range=sensor_time_range,
-                                  forecast_time_range=forecast_time_range,
+                                  forecast_time_range=(forecast_range_start, forecast_range_end),
                                   sensor_ids=selected_sensors_ids,
                                   evaluator=self._evaluator,
                                   observations_offset=self._observations_offset,
