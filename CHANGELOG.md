@@ -1,9 +1,11 @@
 # Changelog
 
+## `0.3.4`
+- Store unmerged forecast and observations data
+
 ## `0.3.3`
 - Support Rainbow Weather Forecast downloader
 - Support Foreca forecast downloader (minutely and 15-minutely nowcast)
-- Store unmerged forecast and observations data
 
 ## `0.3.2`
 - Support for downloading TWC forecast precipitation
