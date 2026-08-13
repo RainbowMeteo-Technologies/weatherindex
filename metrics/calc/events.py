@@ -504,20 +504,19 @@ class CalculateMetrics:
         os.makedirs(observations_dir, exist_ok=True)
 
         final_forecasts = concat_frames(forecast_frames, columns=FORECAST_EXPORT_COLUMNS)
-        forecast_path = os.path.join(forecasts_dir, f"{self._forecast_vendor.value}.csv")
+        forecast_path = os.path.join(forecasts_dir, f"{self._forecast_vendor.value}.parquet")
         if os.path.exists(forecast_path):
-            existing_forecasts = pandas.read_csv(forecast_path)
-            final_forecasts = concat_frames(
-                [existing_forecasts, final_forecasts], columns=FORECAST_EXPORT_COLUMNS)
-        final_forecasts.to_csv(forecast_path, index=False)
+            existing_forecasts = pandas.read_parquet(forecast_path)
+            final_forecasts = concat_frames([existing_forecasts, final_forecasts], columns=FORECAST_EXPORT_COLUMNS)
+        final_forecasts.to_parquet(forecast_path, index=False)
 
         final_observations = concat_frames(observation_frames, columns=OBSERVATION_EXPORT_COLUMNS)
-        observation_path = os.path.join(observations_dir, f"{self._observation_vendor.value}.csv")
+        observation_path = os.path.join(observations_dir, f"{self._observation_vendor.value}.parquet")
         if os.path.exists(observation_path):
-            existing_observations = pandas.read_csv(observation_path)
-            final_observations = concat_frames(
-                [existing_observations, final_observations], columns=OBSERVATION_EXPORT_COLUMNS)
-        final_observations.to_csv(observation_path, index=False)
+            existing_observations = pandas.read_parquet(observation_path)
+            final_observations = concat_frames([existing_observations, final_observations],
+                                               columns=OBSERVATION_EXPORT_COLUMNS)
+        final_observations.to_parquet(observation_path, index=False)
 
         shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
         shutil.rmtree(self.partial_forecasts_dir, ignore_errors=True)

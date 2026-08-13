@@ -1,7 +1,7 @@
 # Changelog
 
 ## `0.3.4`
-- Store unmerged forecast and observations data
+- Store unmerged forecast and observations data (as parquets)
 
 ## `0.3.3`
 - Support Rainbow Weather Forecast downloader
