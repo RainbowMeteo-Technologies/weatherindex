@@ -36,9 +36,12 @@ def create_worker(forecast_vendor: DataVendor = DataVendor.AccuWeather,
                                    forecast_offsets=forecast_offsets,
                                    evaluator=evaluator,
                                    session_path=session_path,
-                                   time_range=sensors_time_range,
+                                   sensor_time_range=sensors_time_range,
+                                   forecast_time_range=sensors_time_range,
                                    forecast_manager_cls=forecast_manager_cls,
-                                   output_path="test-output"))
+                                   output_path="test-output",
+                                   forecasts_output_path="test-output-forecasts",
+                                   observations_output_path="test-output-observations"))
 
 
 def create_observations(data: typing.List[any]) -> pandas.DataFrame:

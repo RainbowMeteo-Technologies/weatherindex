@@ -12,6 +12,10 @@ from dataclasses import dataclass
 
 from metrics.calc.evaluators import get_evaluator
 from metrics.calc.forecast_manager import DataVendor, ForecastManager
+from metrics.constants import (FORECAST_EXPORT_COLUMNS,
+                               FORECASTS_DIR_NAME,
+                               OBSERVATION_EXPORT_COLUMNS,
+                               OBSERVATIONS_DIR_NAME)
 from metrics.calc.utils import read_selected_sensors
 from metrics.session import Session
 from metrics.utils.frame import concat_frames
@@ -43,8 +47,10 @@ class JobParams:
         Path to the session directory
     sensors_path : str
         Path to a directory with sensors data
-    time_range : Tuple[int, int]
-        Sensors timestamp range to calculate metrics
+    sensor_time_range : Tuple[int, int]
+        Sensors timestamp range to load
+    forecast_time_range : Tuple[int, int]
+        Forecast timestamp range to load
     observations_offset: int
         Offset for observations comparing to forecast (in seconds)
     group_period: int
@@ -55,8 +61,11 @@ class JobParams:
     sensor_ids: typing.List[str]
     forecast_offsets: typing.List[int]
     session_path: str
-    time_range: typing.Tuple[int, int]
+    sensor_time_range: typing.Tuple[int, int]
+    forecast_time_range: typing.Tuple[int, int]
     output_path: str
+    forecasts_output_path: str
+    observations_output_path: str
     evaluator: typing.Callable[[pandas.DataFrame, pandas.DataFrame], list[list[any]]]
     observations_offset: int = 0
     group_period: int = 600
@@ -108,10 +117,11 @@ class Worker:
         sensors_path = None
         sensors_path = os.path.join(session.tables_folder, self._params.observation_vendor.value)
 
-        sensors_start_time, sensors_end_time = self._params.time_range
+        sensors_start_time, sensors_end_time = self._params.sensor_time_range
         sensors_start_time = sensors_start_time - self._params.group_period
-
         sensors_time_range = (sensors_start_time, sensors_end_time)
+
+        forecast_start_time, forecast_end_time = self._params.forecast_time_range
 
         collected_sensor_files = self._get_sensor_file_list(sensors_time_range=sensors_time_range,
                                                             sensors_path=sensors_path)
@@ -149,30 +159,38 @@ class Worker:
         sensor_observations = sensor_observations.sort_values(by=["id", "timestamp"])
         sensor_observations = sensor_observations.drop_duplicates(subset=["id", "timestamp"], keep="first")
 
-        forecast_start_time, forecast_end_time = self._params.time_range
-        # -1:10, to cover begin of observations with 2 hour forecast
-        forecast_start_time = forecast_start_time - (max(self._params.forecast_offsets) + 4200)
-
         console.log(f"Loading forecast in range ({forecast_start_time}, {forecast_end_time})...")
 
         data_provider = self._params.forecast_manager_cls(data_vendor=self._params.forecast_vendor, session=session)
         forecast = data_provider.load_forecast(time_rage=(forecast_start_time, forecast_end_time),
                                                sensors_table=sensor_observations)
 
-        console.log(f"Calculating metrics for {self._params.time_range}...")
+        console.log(f"Calculating metrics for {self._params.forecast_time_range}...")
 
         calculated_frame = self._calculate(forecast_times=self._params.forecast_offsets,
                                            observations=sensor_observations,
                                            forecast=forecast)
 
-        self._dump_frame(calculated_frame)
+        file_id = uuid.uuid4().hex
+        self._dump_frame(calculated_frame,
+                         filename=f"{file_id}.csv",
+                         output_dir=self._params.output_path)
+        self._dump_frame(forecast,
+                         filename=f"{file_id}.csv",
+                         output_dir=self._params.forecasts_output_path)
+        self._dump_frame(sensor_observations,
+                         filename=f"{file_id}.csv",
+                         output_dir=self._params.observations_output_path)
 
-    def _dump_frame(self, frame: pandas.DataFrame):
+    def _dump_frame(self,
+                    frame: pandas.DataFrame,
+                    output_dir: str,
+                    filename: typing.Optional[str] = None):
 
-        os.makedirs(self._params.output_path, exist_ok=True)
-        frame.to_csv(os.path.join(self._params.output_path,
-                                  f"{uuid.uuid4().hex}.csv"),
-                     index=False)
+        os.makedirs(output_dir, exist_ok=True)
+        if filename is None:
+            filename = f"{uuid.uuid4().hex}.csv"
+        frame.to_csv(os.path.join(output_dir, filename), index=False)
 
     def _align_time_column(self, data: pandas.DataFrame,
                            column_name: str,
@@ -379,6 +397,16 @@ class CalculateMetrics:
         return os.path.join(self._session.metrics_folder,
                             f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}")
 
+    @property
+    def partial_forecasts_dir(self) -> str:
+        temp_folder = f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_forecasts"
+        return os.path.join(self._session.metrics_folder, temp_folder)
+
+    @property
+    def partial_observations_dir(self) -> str:
+        temp_folder = f"temp_{self._forecast_vendor.value}_{self._observation_vendor.value}_observations"
+        return os.path.join(self._session.metrics_folder, temp_folder)
+
     def _calc_sensors_range(self) -> typing.Tuple[int, int]:
         """Calculates aligned sensors range based on session start/end time
 
@@ -409,17 +437,24 @@ class CalculateMetrics:
 
         jobs = []
         for timestamp in range(start_time, end_time, self._split_time_range):
+            sensor_time_range = (timestamp, timestamp + self._split_time_range)
+            # -1:10, to cover begin of observations with 2 hour forecast
+            forecast_range_start, forecast_range_end = sensor_time_range
+            forecast_range_start = forecast_range_start - (max(self._forecast_offsets) + 4200)
             jobs.append(JobParams(forecast_vendor=self._forecast_vendor,
                                   observation_vendor=self._observation_vendor,
                                   forecast_offsets=self._forecast_offsets,
                                   session_path=self._session_path,
-                                  time_range=(timestamp, timestamp + self._split_time_range),
+                                  sensor_time_range=sensor_time_range,
+                                  forecast_time_range=(forecast_range_start, forecast_range_end),
                                   sensor_ids=selected_sensors_ids,
                                   evaluator=self._evaluator,
                                   observations_offset=self._observations_offset,
                                   group_period=self._group_period,
                                   forecast_manager_cls=self._forecast_manager_cls,
-                                  output_path=self.partial_metrics_dir))
+                                  output_path=self.partial_metrics_dir,
+                                  forecasts_output_path=self.partial_forecasts_dir,
+                                  observations_output_path=self.partial_observations_dir))
 
         return [functools.partial(_process_time_range, params=job) for job in jobs]
 
@@ -434,9 +469,21 @@ class CalculateMetrics:
                 pass
 
         frames = []
+        forecast_frames = []
+        observation_frames = []
+
         for filename in os.listdir(self.partial_metrics_dir):
+            frame_path = os.path.join(self.partial_metrics_dir, filename)
+            if os.path.isfile(frame_path) and filename.endswith(".csv"):
+                frames.append(pandas.read_csv(frame_path))
+
+        for filename in os.listdir(self.partial_forecasts_dir):
             if filename.endswith(".csv"):
-                frames.append(pandas.read_csv(os.path.join(self.partial_metrics_dir, filename)))
+                forecast_frames.append(pandas.read_csv(os.path.join(self.partial_forecasts_dir, filename)))
+
+        for filename in os.listdir(self.partial_observations_dir):
+            if filename.endswith(".csv"):
+                observation_frames.append(pandas.read_csv(os.path.join(self.partial_observations_dir, filename)))
 
         if len(frames) == 0:
             console.log(f"Found no frames at {self.partial_metrics_dir}")
@@ -451,7 +498,30 @@ class CalculateMetrics:
                                                        "tp", "fp", "tn", "fn"])
         final_metrics.to_csv(self.metrics_path, index=False)
 
+        forecasts_dir = os.path.join(self._session.metrics_folder, FORECASTS_DIR_NAME)
+        observations_dir = os.path.join(self._session.metrics_folder, OBSERVATIONS_DIR_NAME)
+        os.makedirs(forecasts_dir, exist_ok=True)
+        os.makedirs(observations_dir, exist_ok=True)
+
+        final_forecasts = concat_frames(forecast_frames, columns=FORECAST_EXPORT_COLUMNS)
+        forecast_path = os.path.join(forecasts_dir, f"{self._forecast_vendor.value}.csv")
+        if os.path.exists(forecast_path):
+            existing_forecasts = pandas.read_csv(forecast_path)
+            final_forecasts = concat_frames(
+                [existing_forecasts, final_forecasts], columns=FORECAST_EXPORT_COLUMNS)
+        final_forecasts.to_csv(forecast_path, index=False)
+
+        final_observations = concat_frames(observation_frames, columns=OBSERVATION_EXPORT_COLUMNS)
+        observation_path = os.path.join(observations_dir, f"{self._observation_vendor.value}.csv")
+        if os.path.exists(observation_path):
+            existing_observations = pandas.read_csv(observation_path)
+            final_observations = concat_frames(
+                [existing_observations, final_observations], columns=OBSERVATION_EXPORT_COLUMNS)
+        final_observations.to_csv(observation_path, index=False)
+
         shutil.rmtree(self.partial_metrics_dir, ignore_errors=True)
+        shutil.rmtree(self.partial_forecasts_dir, ignore_errors=True)
+        shutil.rmtree(self.partial_observations_dir, ignore_errors=True)
 
 
 def calc_events(session_path: str,
