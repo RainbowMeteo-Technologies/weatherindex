@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.3.5`
+- Support Google Weather API minute forecast downloader (1-hour precipitation nowcast)
+- Add Google forecast vendor to checkout and parse
+
 ## `0.3.4`
 - Store unmerged forecast and observations data
 
