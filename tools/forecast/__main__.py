@@ -3,6 +3,7 @@ import asyncio
 
 from forecast.providers.accuweather import AccuWeather
 from forecast.providers.foreca import Foreca
+from forecast.providers.google import Google
 from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
@@ -173,6 +174,20 @@ def _create_foreca(args: argparse.Namespace) -> Foreca:
                   sensors=sensors)
 
 
+def _create_google(args: argparse.Namespace) -> Google:
+    publisher = _create_publisher(args)
+    sensors = Sensor.from_csv(sensors_path=args.sensors,
+                              include_countries=args.include_countries)
+
+    return Google(download_path=args.download_path,
+                  publisher=publisher,
+                  frequency=args.download_period,
+                  token=args.token,
+                  page_size=args.page_size,
+                  qps=args.qps,
+                  sensors=sensors)
+
+
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
     publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
@@ -313,6 +328,20 @@ if __name__ == "__main__":
     foreca_parser.add_argument("--qps", type=float, required=True,
                                help="Maximum queries per second (Foreca rate limit)")
     foreca_parser.set_defaults(func=_create_foreca)
+
+    # Google
+    google_parser = subparser.add_parser(
+        "google",
+        help="Google Weather API minute forecast "
+             "(https://developers.google.com/maps/documentation/weather/minute-forecast)")
+    _add_sensors_params(google_parser)
+    google_parser.add_argument("--token", type=str, required=True, help="API key for Google Maps Platform Weather API")
+    google_parser.add_argument("--qps", type=float, required=False, default=10.0,
+                               help="Maximum queries per second (Google rate limit)")
+    google_parser.add_argument("--page-size", type=int, dest="page_size", required=False,
+                               default=Google.DEFAULT_PAGE_SIZE,
+                               help="Number of minute forecast segments to request (pageSize)")
+    google_parser.set_defaults(func=_create_google)
 
     # WeatherCompany
     weathercompany_parser = subparser.add_parser("weathercompany", help="WeatherCompany")
