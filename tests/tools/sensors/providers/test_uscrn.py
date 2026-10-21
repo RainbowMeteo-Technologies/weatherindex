@@ -1,4 +1,5 @@
 import io
+import os
 import pytest
 import tempfile
 import zipfile
@@ -6,6 +7,7 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from sensors.providers.provider import BaseProvider
 from sensors.providers.uscrn import UscrnSource
+from sensors.publishers.file import FilePublisher
 from sensors.publishers.publisher import Publisher
 from sensors.utils.memory_zip import MemoryZip
 from unittest.mock import MagicMock, patch
@@ -28,7 +30,8 @@ def _row(wban: str, utc: datetime, precipitation: float = 0.0) -> str:
 
 def _listing(*file_names: str) -> bytes:
     links = "\n".join(f'<tr><td><a href="{name}">{name}</a></td><td>2026-10-21 11:42</td></tr>' for name in file_names)
-    return f"<html><body><table>\n<tr><td><a href=\"/pub/data/uscrn/products/\">Parent Directory</a></td></tr>\n{links}\n</table></body></html>".encode()
+    parent = '<tr><td><a href="/pub/data/uscrn/products/">Parent Directory</a></td></tr>'
+    return f"<html><body><table>\n{parent}\n{links}\n</table></body></html>".encode()
 
 
 class FakeNcei:
@@ -199,3 +202,30 @@ async def test_previous_year_is_not_listed_mid_year(publisher, download_path):
     await _run_fetch_job(client, fake)
 
     assert [url for url, _ in fake.calls] == [f"{BASE_URL}/2026/"]
+
+
+def _read_zip(path: str) -> dict[str, bytes]:
+    with zipfile.ZipFile(path) as zf:
+        return {name: zf.read(name) for name in zf.namelist()}
+
+
+@pytest.mark.asyncio
+async def test_backfill_writes_hourly_snapshots_in_the_downloader_layout(download_path):
+    ok = "CRNS0101-05-2026-TX_Monahans_6_ENE.txt"
+    broken = "CRNS0101-05-2026-AK_Aleknagik_1_NNE.txt"
+    # rows every 5 min from 06:00 to 12:00 UTC: index 0 is 06:00, index 13 is 07:05, index 48 is 10:00
+    rows = [_row("03047", datetime(2026, 10, 21, 6, 0) + i * timedelta(minutes=5)) for i in range(73)]
+    fake = FakeNcei(files={ok: "".join(rows).encode()}, listings={2026: _listing(ok, broken)}, failing={broken})
+
+    with tempfile.TemporaryDirectory() as output:
+        client = UscrnSource(publisher=FilePublisher(output), download_path=download_path)
+        with patch("sensors.providers.uscrn.Http.get", side_effect=fake.get):
+            await client.backfill(start=int(datetime(2026, 10, 21, 9, 30, tzinfo=timezone.utc).timestamp()),
+                                  end=int(datetime(2026, 10, 21, 11, 0, tzinfo=timezone.utc).timestamp()))
+
+        assert sorted(os.listdir(output)) == ["1792576800.zip", "1792580400.zip"]  # 10:00 and 11:00
+        assert _read_zip(os.path.join(output, "1792576800.zip")) == {ok: "".join(rows[13:49]).encode()}
+        assert _read_zip(os.path.join(output, "1792580400.zip")) == {ok: "".join(rows[25:61]).encode()}
+
+    # whole yearly files are read, without Range
+    assert (f"{BASE_URL}/2026/{ok}", {}) in fake.calls

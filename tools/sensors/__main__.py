@@ -2,12 +2,14 @@ import argparse
 import asyncio
 import logging
 
+from datetime import datetime, timezone
 from enum import Enum
 from sensors.providers.geosphere import GeoSphereProvider
 from sensors.providers.dwd import DWDProvider
 from sensors.providers.fsdiopendata import FSDIOpenDataProvider
 from sensors.providers.metar import MetarSource
 from sensors.providers.tao_triton import TaoTritonProvider
+from sensors.providers.uscrn import UscrnSource
 from sensors.publishers.publisher import Publisher
 from sensors.publishers.file import FilePublisher
 from sensors.publishers.s3 import S3Publisher
@@ -57,6 +59,34 @@ def _create_tao_triton(args: argparse.Namespace):
                              download_path=args.download_path)
 
 
+def _create_uscrn(args: argparse.Namespace):
+    publisher = _create_publisher(args)
+    return UscrnSource(publisher=publisher,
+                       download_path=args.download_path)
+
+
+class _UscrnBackfill:
+    def __init__(self, source: UscrnSource, start: int, end: int):
+        self._source = source
+        self._start = start
+        self._end = end
+
+    async def run(self):
+        await self._source.backfill(start=self._start, end=self._end)
+
+
+def _create_uscrn_backfill(args: argparse.Namespace):
+    return _UscrnBackfill(source=_create_uscrn(args), start=args.start, end=args.end)
+
+
+def _utc_timestamp(value: str) -> int:
+    """Parse an ISO 8601 time (UTC when no offset is given) into a unix timestamp."""
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return int(parsed.timestamp())
+
+
 async def main(args: argparse.Namespace):
     provider = args.func(args)
     await provider.run()
@@ -93,6 +123,19 @@ if __name__ == "__main__":
     # NDBC
     tao_triton_parser = subparser.add_parser("tao-triton", help="Download observations from National Data Buoy Center")
     tao_triton_parser.set_defaults(func=_create_tao_triton)
+
+    # USCRN
+    uscrn_parser = subparser.add_parser("uscrn", help="Download USCRN subhourly observations from NCEI every hour")
+    uscrn_parser.set_defaults(func=_create_uscrn)
+
+    uscrn_backfill_parser = subparser.add_parser(
+        "uscrn-backfill",
+        help="Rebuild hourly USCRN snapshots for a time range from the NCEI yearly files")
+    uscrn_backfill_parser.add_argument("--start", type=_utc_timestamp, required=True,
+                                       help="First snapshot time, ISO 8601 (UTC if no offset), e.g. 2026-10-20T06:00")
+    uscrn_backfill_parser.add_argument("--end", type=_utc_timestamp, required=True,
+                                       help="Last snapshot time, ISO 8601 (UTC if no offset), e.g. 2026-10-20T18:00")
+    uscrn_backfill_parser.set_defaults(func=_create_uscrn_backfill)
 
     args = parser.parse_args()
 

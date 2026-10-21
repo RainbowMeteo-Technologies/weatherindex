@@ -71,25 +71,36 @@ class BaseProvider:
                 logging.info(f"It took {time.time() - start_time} seconds to check data for {self._service}")
                 continue
 
-            # Save the storage to the download path
-            os.makedirs(self._download_path, exist_ok=True)
-            file_name = f"{timestamp}.zip"
-            file_path = os.path.join(self._download_path, file_name)
-            with open(file_path, "wb") as file:
-                file.write(self._storage.buffer.getvalue())
-
-            # Publish to the storage
-            await self._publisher.publish(publish_path=file_name,
-                                          downloaded_file_path=file_path)
-
-            # Remove the file
-            try:
-                logging.info(f"Removing file {file_path}")
-                os.remove(file_path)
-            except Exception as e:
-                logging.error(f"Error removing file {file_path}: {e}")
+            await self._publish_storage(timestamp)
 
             logging.info(f"It took {time.time() - start_time} seconds to download data for {self._service}")
+
+    async def _publish_storage(self, timestamp: int):
+        """
+        Publish the closed storage as the `<timestamp>.zip` snapshot.
+
+        Parameters
+        ----------
+        timestamp : int
+            The timestamp of the snapshot
+        """
+        # Save the storage to the download path
+        os.makedirs(self._download_path, exist_ok=True)
+        file_name = f"{timestamp}.zip"
+        file_path = os.path.join(self._download_path, file_name)
+        with open(file_path, "wb") as file:
+            file.write(self._storage.buffer.getvalue())
+
+        # Publish to the storage
+        await self._publisher.publish(publish_path=file_name,
+                                      downloaded_file_path=file_path)
+
+        # Remove the file
+        try:
+            logging.info(f"Removing file {file_path}")
+            os.remove(file_path)
+        except Exception as e:
+            logging.error(f"Error removing file {file_path}: {e}")
 
     async def fetch_job(self, timestamp: int):
         """
