@@ -1,4 +1,4 @@
-FROM python:3.11.9-slim AS metrics-forecast
+FROM python:3.12.9-slim AS metrics-forecast
 
 ENV LANG=en_US.UTF-8
 ENV TZ=Europe/Warsaw

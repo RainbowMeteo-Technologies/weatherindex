@@ -7,3 +7,5 @@ PyJWT[crypto]~=2.6.0
 rich~=13.3.3
 tqdm~=4.67.1
 typing_extensions~=4.13.2
+icechunk>=2.0,<3
+xarray>=2025.6
