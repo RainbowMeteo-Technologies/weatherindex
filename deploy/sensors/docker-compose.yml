@@ -76,3 +76,18 @@ services:
       --download-path ./download/tao_triton
       --storage-uri ${S3_URI_TAO_TRITON}
       tao-triton
+
+  uscrn-downloader:
+    profiles:
+      - uscrn
+    image: weatherindex/weatherindex:sensors-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/download/uscrn/:/.download/uscrn/
+    command: |
+      python -m sensors
+      --download-path ./download/uscrn
+      --storage-uri ${USCRN_S3_URI}
+      uscrn
