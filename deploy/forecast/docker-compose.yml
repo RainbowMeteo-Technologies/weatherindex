@@ -146,3 +146,23 @@ services:
       tomorrowio
       --forecast-type 6hours
       --token ${TOMORROW_TOKEN}
+
+  # precip.ai nowcast archive at the USCRN sensors, hourly, 24 hours behind real time.
+  # The last published run is kept in the storage volume to resume after a restart
+  precipai-downloader:
+    profiles:
+      - precipai
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/precipai/:/storage/
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${PRECIPAI_S3_URI}
+      --download-period 3600
+      --download-delay 300
+      precipai
+      --sensors forecast/uscrn.sensors.csv
