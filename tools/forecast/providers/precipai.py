@@ -25,6 +25,9 @@ ARCHIVE_VARIABLE = "precipitation_rate"  # liquid-water-equivalent mm/h
 
 # a run is published once its init time is at least 24 hours old
 AVAILABILITY_DELAY = 24 * 3600
+# available runs initialized within the lookback before the latest available one are checked again,
+# so runs reaching the archive late are published by a later run of the downloader
+LATE_RUNS_LOOKBACK = 6 * 3600
 
 # spatial chunk size of the archive, used when the store does not report it
 CHUNK_SIZE = 128
@@ -33,8 +36,11 @@ READ_WORKERS = 16
 
 # content of a published snapshot `<init time>.zip`
 POINTS_FILE_NAME = "precipai.csv"
-# init time of the last published run, kept in the download path to resume after a restart
-STATE_FILE_NAME = "last_init_time"
+# `{"since": <init time>, "published": [<init time>, ...]}`: runs initialized at or before `since` are done, the
+# later ones are done if published. Kept in the download path to resume after a restart
+STATE_FILE_NAME = "published_runs.json"
+# init time of the last published run, written by earlier versions, read once to resume after an upgrade
+LEGACY_STATE_FILE_NAME = "last_init_time"
 SNAPSHOT_FILE_NAME = "snapshot.json"
 # `lon`, `lat`: sensor location, `grid_lon`, `grid_lat`: center of its nearest cell,
 # `lead_time`: seconds after the init time, `precipitation_rate`: mm/h
@@ -54,8 +60,8 @@ class PrecipAi(BaseProvider):
     """
     precip.ai nowcast archive (Icechunk) at the sensors' points.
 
-    Every run picks up the archive runs initialized after the last written one (and at least 24 hours ago),
-    and publishes one `<init time>.zip` per archive run.
+    Every run picks up the archive runs initialized at least 24 hours ago and not published yet, looking back
+    `lookback` seconds for runs reaching the archive late, and publishes one `<init time>.zip` per archive run.
     """
 
     def __init__(self,
@@ -63,6 +69,7 @@ class PrecipAi(BaseProvider):
                  archive_url: str = ARCHIVE_URL,
                  open_archive: Callable[[], tuple[xr.Dataset, str]] | None = None,
                  frequency: int = 3600,
+                 lookback: int = LATE_RUNS_LOOKBACK,
                  **kwargs):
         """
         Parameters
@@ -72,11 +79,14 @@ class PrecipAi(BaseProvider):
         open_archive : Callable[[], tuple[xr.Dataset, str]] | None
             Opens the archive group, returns the dataset and the snapshot id read. Opens `archive_url`
             with Icechunk by default
+        lookback : int
+            Seconds before the latest available run within which unpublished runs are published
         """
         super().__init__(frequency=frequency, **kwargs)
         self.sensors = sensors
         self._archive_url = archive_url
         self._open_archive = open_archive or functools.partial(open_icechunk_archive, archive_url)
+        self._lookback = lookback
 
     async def run(self):
         while True:
@@ -101,7 +111,7 @@ class PrecipAi(BaseProvider):
         -------
         list[int]
             Init times of the published archive runs. A failure stops the run, the next run retries
-            from the failed archive run
+            the failed archive run and the ones after it
         """
         try:
             ds, snapshot_id = await asyncio.to_thread(self._open_archive)
@@ -109,18 +119,21 @@ class PrecipAi(BaseProvider):
             console.log(f"Wasn't able to open the precip.ai archive {self._archive_url}: {ex}")
             return []
 
-        # the last written run, or the runs that became available within the last period on the first start
-        last = self._read_last_init_time()
-        if last is None:
-            last = timestamp - AVAILABILITY_DELAY - self._frequency
         available = timestamp - AVAILABILITY_DELAY
-        init_times = [t for t in _init_timestamps(ds) if last < t <= available]
+        state = self._read_state()
+        if state is None:
+            # the first start: the runs that became available within the last period
+            since, published = available - self._frequency, set()
+        else:
+            since, published = max(state[0], available - self._lookback), state[1]
+        published = {t for t in published if t > since}
+        init_times = [t for t in _init_timestamps(ds) if since < t <= available and t not in published]
 
         cells = _nearest_cells(ds, self.sensors)
         console.log(f"{len(cells)} of {len(self.sensors)} sensors are inside the archive grid, "
                     f"{len(init_times)} archive runs to download (snapshot {snapshot_id})")
 
-        published = []
+        published_now = []
         for init_time in init_times:
             try:
                 await self._publish_run(ds, snapshot_id, init_time, cells)
@@ -132,10 +145,11 @@ class PrecipAi(BaseProvider):
                 if os.path.exists(f"{self.snapshot_path(init_time)}.zip"):
                     os.remove(f"{self.snapshot_path(init_time)}.zip")
 
-            self._write_last_init_time(init_time)
-            published.append(init_time)
+            published.add(init_time)
+            published_now.append(init_time)
 
-        return published
+        self._write_state(since, published)
+        return published_now
 
     async def _publish_run(self, ds: xr.Dataset, snapshot_id: str, init_time: int, cells: pd.DataFrame):
         """Publishes `<init time>.zip` with the points of the archive run and the snapshot id they were read from"""
@@ -165,15 +179,25 @@ class PrecipAi(BaseProvider):
     def _state_path(self) -> str:
         return os.path.join(self._download_path, STATE_FILE_NAME)
 
-    def _read_last_init_time(self) -> int | None:
-        if not os.path.exists(self._state_path):
-            return None
-        with open(self._state_path) as f:
-            return int(f.read().strip())
+    def _read_state(self) -> tuple[int, set[int]] | None:
+        """`since` and the init times of the published runs after it, None before the first run"""
+        if os.path.exists(self._state_path):
+            with open(self._state_path) as f:
+                state = json.load(f)
+            return int(state["since"]), {int(t) for t in state["published"]}
 
-    def _write_last_init_time(self, init_time: int):
+        # earlier versions kept the last published run only: every run up to it is done
+        legacy_state_path = os.path.join(self._download_path, LEGACY_STATE_FILE_NAME)
+        if os.path.exists(legacy_state_path):
+            with open(legacy_state_path) as f:
+                return int(f.read().strip()), set()
+
+        return None
+
+    def _write_state(self, since: int, published: set[int]):
+        os.makedirs(self._download_path, exist_ok=True)
         with open(self._state_path, "w") as f:
-            f.write(str(init_time))
+            json.dump({"since": since, "published": sorted(published)}, f)
 
 
 def _init_timestamps(ds: xr.Dataset) -> list[int]:

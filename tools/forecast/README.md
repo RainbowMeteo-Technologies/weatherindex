@@ -12,8 +12,10 @@ reads the public [precip.ai nowcast archive](https://api-docs.precip.ai/nowcast-
 grid cell of every sensor. It needs Python 3.12 (`icechunk>=2.0`, `xarray>=2025.6`).
 
 - A run of the archive (every 5 minutes, leads 0–115 min) is published once its init time is at least 24 hours old.
-  Every hourly run picks up the archive runs initialized after the last published one, which is kept in
-  `<download path>/last_init_time`.
+  Every hourly run picks up the archive runs not published yet, looking back 6 hours for runs reaching the archive
+  late. The published runs are kept in `<download path>/published_runs.json` (an earlier `last_init_time` file is
+  read once after an upgrade).
+- The archive grid is read in either longitude convention (-180..180 or 0..360), `grid_lon` is in -180..180.
 - Every archive run is uploaded as `<s3 uri>/<init time>.zip` with `<init time>/precipai.csv`
   (`id, lon, lat, grid_lon, grid_lat, lead_time, precipitation_rate`; `lead_time` in seconds, cells without data are
   left out) and `<init time>/snapshot.json` with the Icechunk `snapshot_id` the points were read from.

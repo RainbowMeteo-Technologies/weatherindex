@@ -87,14 +87,15 @@ def archive_path(tmp_path) -> str:
     return _write_archive(str(tmp_path / "archive"), init_times)
 
 
-def _provider(tmp_path, archive_path: str, publisher: Publisher) -> PrecipAi:
+def _provider(tmp_path, archive_path: str, publisher: Publisher, **kwargs) -> PrecipAi:
     def open_archive() -> tuple[xr.Dataset, str]:
         return xr.open_zarr(archive_path, group="mrms_native", consolidated=False), SNAPSHOT_ID
 
     return PrecipAi(sensors=_sensors(),
                     publisher=publisher,
                     download_path=str(tmp_path / "download"),
-                    open_archive=open_archive)
+                    open_archive=open_archive,
+                    **kwargs)
 
 
 def _points(archive: dict[str, bytes], init_time: int) -> pd.DataFrame:
@@ -128,6 +129,52 @@ async def test_next_run_writes_only_newer_runs_including_late_ones_after_a_resta
 
     assert sorted(first.archives) == [f"{t}.zip" for t in range(RUN_TIME - DAY - HOUR + STEP, RUN_TIME - DAY, STEP)]
     assert sorted(second.archives) == [f"{t}.zip" for t in range(RUN_TIME - DAY, RUN_TIME - DAY + HOUR + 1, STEP)]
+
+
+@pytest.mark.asyncio
+async def test_late_arriving_runs_are_published_by_a_later_run(tmp_path):
+    archive_path = str(tmp_path / "archive")
+    late_init_time = RUN_TIME - DAY - 30 * 60
+    all_init_times = list(range(FIRST_INIT_TIME, FIRST_INIT_TIME + 4 * HOUR, STEP))
+    # the 2026-10-20 11:30 UTC run reaches the archive after the first run of the downloader
+    _write_archive(archive_path, [t for t in all_init_times if t != late_init_time])
+    first = RecordingPublisher()
+    await _provider(tmp_path, archive_path, first).download(RUN_TIME)
+
+    _write_archive(archive_path, all_init_times)
+    second = RecordingPublisher()
+    await _provider(tmp_path, archive_path, second).download(RUN_TIME + HOUR)
+
+    assert f"{late_init_time}.zip" not in first.archives
+    new_runs = range(RUN_TIME - DAY + STEP, RUN_TIME - DAY + HOUR + 1, STEP)
+    assert sorted(second.archives) == sorted([f"{late_init_time}.zip"] + [f"{t}.zip" for t in new_runs])
+
+
+@pytest.mark.asyncio
+async def test_runs_arriving_later_than_the_lookback_are_not_published(tmp_path):
+    archive_path = str(tmp_path / "archive")
+    late_init_time = RUN_TIME - DAY - 30 * 60
+    all_init_times = list(range(FIRST_INIT_TIME, FIRST_INIT_TIME + 4 * HOUR, STEP))
+    _write_archive(archive_path, [t for t in all_init_times if t != late_init_time])
+    await _provider(tmp_path, archive_path, RecordingPublisher(), lookback=HOUR).download(RUN_TIME)
+
+    _write_archive(archive_path, all_init_times)
+    second = RecordingPublisher()
+    await _provider(tmp_path, archive_path, second, lookback=HOUR).download(RUN_TIME + HOUR)
+
+    assert f"{late_init_time}.zip" not in second.archives
+
+
+@pytest.mark.asyncio
+async def test_run_after_an_upgrade_resumes_after_the_last_run_of_the_earlier_version(tmp_path, archive_path):
+    last_init_time = RUN_TIME - DAY - 30 * 60
+    os.makedirs(tmp_path / "download")
+    (tmp_path / "download" / "last_init_time").write_text(str(last_init_time))
+
+    publisher = RecordingPublisher()
+    await _provider(tmp_path, archive_path, publisher).download(RUN_TIME)
+
+    assert sorted(publisher.archives) == [f"{t}.zip" for t in range(last_init_time + STEP, RUN_TIME - DAY + 1, STEP)]
 
 
 @pytest.mark.asyncio
