@@ -190,13 +190,17 @@ def _nearest_cells(ds: xr.Dataset, sensors: list[Sensor]) -> pd.DataFrame:
     """The nearest grid cell (`row`, `column`) of every sensor inside the grid"""
     latitudes = ds["latitude"].values
     longitudes = ds["longitude"].values
+    # sensors are in -180..180, the archive grid may be in 0..360: sensors are looked up in the grid convention
+    grid_in_0_360 = float(np.max(longitudes)) > 180
+    sensor_lons = [s.lon % 360 if grid_in_0_360 else s.lon for s in sensors]
     cells = pd.DataFrame({"id": [s.id for s in sensors],
                           "lon": [s.lon for s in sensors],
                           "lat": [s.lat for s in sensors],
                           "row": _nearest_index(latitudes, [s.lat for s in sensors]),
-                          "column": _nearest_index(longitudes, [s.lon for s in sensors])})
+                          "column": _nearest_index(longitudes, sensor_lons)})
     cells = cells[(cells["row"] >= 0) & (cells["column"] >= 0)].reset_index(drop=True)
-    cells["grid_lon"] = longitudes[cells["column"]]
+    # grid longitudes are reported in -180..180, as the sensors
+    cells["grid_lon"] = (longitudes[cells["column"]] + 180) % 360 - 180
     cells["grid_lat"] = latitudes[cells["row"]]
     return cells
 

@@ -48,8 +48,9 @@ def _sensors() -> list[Sensor]:
             for sensor_id, (lon, lat, _, _) in SENSORS.items()] + [OUTSIDE_SENSOR]
 
 
-def _write_archive(path: str, init_times: list[int]) -> str:
-    """A local Zarr store laid out like the precip.ai archive group `mrms_native`"""
+def _write_archive(path: str, init_times: list[int], lon_centers: np.ndarray = LON_CENTERS) -> str:
+    """A local Zarr store laid out like the precip.ai archive group `mrms_native`, longitudes in -180..180
+    unless given otherwise"""
     init_index, lead_index, row, column = np.meshgrid(np.arange(len(init_times)), np.arange(LEADS),
                                                       np.arange(len(LAT_CENTERS)), np.arange(len(LON_CENTERS)),
                                                       indexing="ij")
@@ -61,7 +62,7 @@ def _write_archive(path: str, init_times: list[int]) -> str:
         coords={"init_time": pd.to_datetime(init_times, unit="s"),
                 "lead_time": pd.to_timedelta(np.arange(LEADS) * STEP, unit="s"),
                 "latitude": LAT_CENTERS,
-                "longitude": LON_CENTERS})
+                "longitude": lon_centers})
     ds.to_zarr(path, group="mrms_native", consolidated=False, mode="w",
                encoding={"precipitation_rate": {"chunks": (1, LEADS, 128, 128)}})
     return path
@@ -198,6 +199,24 @@ async def test_snapshot_has_the_nearest_cell_of_every_sensor_at_every_lead(tmp_p
             [_rate(init_index, lead, row, column) for lead in range(LEADS)])
         assert (rows["lon"] == lon).all() and (rows["lat"] == lat).all()
         assert (rows["grid_lon"] == LON_CENTERS[column]).all() and (rows["grid_lat"] == LAT_CENTERS[row]).all()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lon_centers", [LON_CENTERS, np.round(LON_CENTERS + 360, 3)], ids=["-180..180", "0..360"])
+async def test_sensors_find_their_cells_in_both_longitude_conventions(tmp_path, lon_centers):
+    archive_path = _write_archive(str(tmp_path / "archive"), [RUN_TIME - DAY], lon_centers=lon_centers)
+    publisher = RecordingPublisher()
+    await _provider(tmp_path, archive_path, publisher).download(RUN_TIME)
+
+    points = _points(publisher.archives[f"{RUN_TIME - DAY}.zip"], RUN_TIME - DAY)
+
+    assert set(points["id"]) == set(SENSORS)
+    for sensor_id, (lon, lat, row, column) in SENSORS.items():
+        rows = points[points["id"] == sensor_id]
+        expected_rates = [_rate(0, lead, row, column) for lead in range(2)]
+        assert rows.sort_values("lead_time")["precipitation_rate"].tolist()[:2] == pytest.approx(expected_rates)
+        # grid longitudes are reported in the convention of the sensors
+        assert rows["grid_lon"].to_numpy() == pytest.approx(LON_CENTERS[column])
 
 
 @pytest.mark.asyncio
