@@ -6,6 +6,7 @@ from forecast.providers.foreca import Foreca
 from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
+from forecast.providers.precipai import ARCHIVE_URL as PRECIPAI_ARCHIVE_URL, PrecipAi
 from forecast.providers.rainbow import Rainbow
 from forecast.providers.rainviewer import RainViewer
 from forecast.providers.tomorrowio import TomorrowIo, TOMORROW_FORECAST_TYPES
@@ -188,6 +189,19 @@ def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
                           product_name=args.product_name)
 
 
+def _create_precipai(args: argparse.Namespace) -> PrecipAi:
+    publisher = _create_publisher(args)
+    sensors = Sensor.from_csv(sensors_path=args.sensors,
+                              include_countries=args.include_countries)
+
+    return PrecipAi(download_path=args.download_path,
+                    publisher=publisher,
+                    frequency=args.download_period,
+                    delay=args.download_delay,
+                    archive_url=args.archive_url,
+                    sensors=sensors)
+
+
 def _add_sensors_params(parser: argparse.ArgumentParser):
     parser.add_argument("--sensors", type=str, required=True,
                         help="Path to csv file with sensors information")
@@ -323,6 +337,13 @@ if __name__ == "__main__":
                                        choices=WeatherCompany.PRODUCT_NAMES,
                                        help="WeatherCompany specific forecast API selection")
     weathercompany_parser.set_defaults(func=_create_weathercompany)
+
+    # precip.ai nowcast archive
+    precipai_parser = subparser.add_parser("precipai", help="precip.ai nowcast archive (Icechunk), 24 hours behind")
+    _add_sensors_params(precipai_parser)
+    precipai_parser.add_argument("--archive-url", type=str, dest="archive_url", default=PRECIPAI_ARCHIVE_URL,
+                                 help="URL of the precip.ai Icechunk repository")
+    precipai_parser.set_defaults(func=_create_precipai)
 
     args = parser.parse_args()
 
