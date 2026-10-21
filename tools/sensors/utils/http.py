@@ -61,7 +61,8 @@ class Http:
             try:
                 response = await session.get(url, headers=headers)
 
-                if response.status == 200:
+                # 206 is a successful answer to a `Range` request
+                if response.status in (200, 206):
                     return await response.read()
 
             except BaseException as ex:
