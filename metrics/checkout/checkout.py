@@ -199,6 +199,9 @@ class CheckoutExecutor:
             DataSource.create(vendor="foreca", s3_uri=forecasts_info.s3_uri_foreca,
                               data_folder=os.path.join(self._session.data_folder, DataVendor.Foreca.value),
                               period=constants.FORECA_PERIOD),
+            DataSource.create(vendor="google", s3_uri=forecasts_info.s3_uri_google,
+                              data_folder=os.path.join(self._session.data_folder, DataVendor.Google.value),
+                              period=constants.GOOGLE_PERIOD),
         ]
 
     def observation_sources_list(self, observations_info: ObservationSourcesInfo) -> typing.List["DataSource"]:
@@ -255,6 +258,7 @@ def checkout(start_time: int,
                 f"- s3_uri_vaisala = {forecasts_source.s3_uri_vaisala}\n"
                 f"- s3_uri_rainbowai = {forecasts_source.s3_uri_rainbowai}\n"
                 f"- s3_uri_weathercompany = {forecasts_source.s3_uri_weathercompany}\n"
+                f"- s3_uri_google = {forecasts_source.s3_uri_google}\n"
                 f"Observation sources:\n"
                 f"- s3_uri_metar = {observations_source.s3_uri_metar}\n")
 

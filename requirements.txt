@@ -10,3 +10,4 @@ pyarrow~=20.0.0
 redis~=5.0.0
 rich~=13.3.3
 tqdm~=4.67.1
+typing_extensions~=4.12.2

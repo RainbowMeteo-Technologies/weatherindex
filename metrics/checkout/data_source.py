@@ -12,6 +12,7 @@ class ForecastSourcesInfo:
     s3_uri_rainbowai: Optional[str] = None
     s3_uri_weathercompany: Optional[str] = None
     s3_uri_foreca: Optional[str] = None
+    s3_uri_google: Optional[str] = None
 
 
 @dataclass

@@ -42,6 +42,27 @@ services:
       --qps 35
       --token ${FORECA_TOKEN}
 
+  google-downloader:
+    profiles:
+      - google
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/google/:/storage/
+      - ./.sensors/global_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_GOOGLE}
+      --download-period 600
+      google
+      --sensors /sensors.csv
+      --qps 10
+      --page-size 30
+      --token ${GOOGLE_TOKEN}
+
   vaisala-downloader:
     profiles:
       - vaisala
