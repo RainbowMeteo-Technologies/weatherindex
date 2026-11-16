@@ -5,6 +5,7 @@ import typing
 from dateutil.parser import isoparse
 from metrics.parse.base_parser import BaseParser
 from metrics.utils.precipitation import PrecipitationType
+from typing_extensions import override
 
 FORECAST_HORIZON = 3600  # segments starting later than this (seconds) after the snapshot are dropped
 
@@ -26,7 +27,8 @@ def _parse_quantity(segment: typing.Dict[str, any], key: str) -> float:
 
 class GoogleParser(BaseParser):
 
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+    @override
+    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> list[list[typing.Any]]:
         """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
         rows = []
         data_json = json.loads(data)
@@ -68,6 +70,7 @@ class GoogleParser(BaseParser):
         """See :func:`~metrics.base_parser.BaseParser._should_parse_file_extension`"""
         return file_extension == ".json"
 
-    def _get_columns(self) -> typing.List[str]:
+    @override
+    def _get_columns(self) -> list[str]:
         """See :func:`~metrics.base_parser.BaseParser._get_columns`"""
         return ["id", "lon", "lat", "timestamp", "precip_rate", "precip_prob", "precip_type"]
