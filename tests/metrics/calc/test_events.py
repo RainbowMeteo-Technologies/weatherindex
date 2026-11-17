@@ -1,15 +1,14 @@
-import os
 import functools
+import os
 import pandas
 import pytest
 import typing
 
 from metrics.session import Session
 from metrics.utils.precipitation import PrecipitationType
-
+from tests.utils.metrics.calc import (create_calculate_metrics, create_forecast, create_metrics, create_metrics_result,
+                                      create_observations, create_worker, timestamp)
 from unittest.mock import MagicMock, patch
-
-from tests.utils.metrics.calc import create_worker, create_observations, create_forecast, create_metrics, create_metrics_result, timestamp, create_calculate_metrics
 
 
 class TestWorker:
@@ -24,11 +23,11 @@ class TestWorker:
         worker._get_sensor_file_list = MagicMock()
         worker._get_sensor_file_list.side_effect = ["1.parquet", "2.parquet"]
 
-        observation_columns = ["id", "precip_type", "precip_rate", "timestamp"]
+        observation_columns = ["id", "precip_type", "precip_rate", "precip_prob", "timestamp"]
         read_parquet_mock.side_effect = [pandas.DataFrame(columns=observation_columns),
                                          pandas.DataFrame(columns=observation_columns)]
 
-        forecast_columns = ["id", "forecast_time", "precip_type", "precip_rate", "timestamp"]
+        forecast_columns = ["id", "forecast_time", "precip_type", "precip_rate", "precip_prob", "timestamp"]
         forecast_manager_mock.load_forecast.side_effect = [pandas.DataFrame(columns=forecast_columns),
                                                            pandas.DataFrame(columns=forecast_columns)]
 
@@ -143,10 +142,10 @@ class TestWorker:
             ]),
             # forecast
             create_forecast([
-                ("sensor_tp", 10.0, PrecipitationType.RAIN.value, timestamp(7800, 60), 60),
-                ("sensor_tn", 0.0, PrecipitationType.RAIN.value, timestamp(7800, 100), 100),
-                ("sensor_fp", 10.0, PrecipitationType.RAIN.value, timestamp(7800, 1700), 1700),
-                ("sensor_fn", 0.0, PrecipitationType.RAIN.value, timestamp(7800, 3550), 3550)
+                ("sensor_tp", 10.0, PrecipitationType.RAIN.value, timestamp(7800, 60), 60, 1.0),
+                ("sensor_tn", 0.0, PrecipitationType.RAIN.value, timestamp(7800, 100), 100, 1.0),
+                ("sensor_fp", 10.0, PrecipitationType.RAIN.value, timestamp(7800, 1700), 1700, 1.0),
+                ("sensor_fn", 0.0, PrecipitationType.RAIN.value, timestamp(7800, 3550), 3550, 1.0)
             ]),
             # expected_metrics
             create_metrics_result(data=(
@@ -175,14 +174,14 @@ class TestWorker:
             # forecast
             create_forecast([
                 # 0 minutes
-                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, -1), 0),
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, -1), 0, 1.0),
                 # 10 minutes
-                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, timestamp(0, 1), 600),
-                ("sensor_09:59", 10.0, PrecipitationType.RAIN.value, timestamp(0, 599), 600),
-                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, 600), 600),
+                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, timestamp(0, 1), 600, 1.0),
+                ("sensor_09:59", 10.0, PrecipitationType.RAIN.value, timestamp(0, 599), 600, 1.0),
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, 600), 600, 1.0),
                 # 20 minutes
-                ("sensor_10:01", 10.0, PrecipitationType.RAIN.value, timestamp(0, 601), 1200),
-                ("sensor_20:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, 1200), 1200),
+                ("sensor_10:01", 10.0, PrecipitationType.RAIN.value, timestamp(0, 601), 1200, 1.0),
+                ("sensor_20:00", 10.0, PrecipitationType.RAIN.value, timestamp(0, 1200), 1200, 1.0),
             ]),
             # expected_metrics
             create_metrics_result(data=(
@@ -206,9 +205,9 @@ class TestWorker:
             # forecast
             create_forecast([
                 # 0 minutes
-                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
                 # 10 minutes
-                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, timestamp(1), 1),
+                ("sensor_00:01", 10.0, PrecipitationType.RAIN.value, timestamp(1), 1, 1.0),
             ]),
             # expected_metrics
             create_metrics_result(data=(
@@ -229,7 +228,7 @@ class TestWorker:
             # forecast
             create_forecast([
                 # 0 minutes
-                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
+                ("sensor_00:00", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
             ]),
             # expected_metrics
             create_metrics_result(data=(
@@ -250,7 +249,7 @@ class TestWorker:
             # forecast
             create_forecast([
                 # 0 minutes
-                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, timestamp(10 * 60), 0),
+                ("sensor_10:00", 10.0, PrecipitationType.RAIN.value, timestamp(10 * 60), 0, 1.0),
             ]),
             # expected_metrics
             create_metrics_result(data=(

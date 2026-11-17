@@ -106,6 +106,11 @@ class ForecastManager:
                     assert "precip_type" in data.columns
                     assert "timestamp" in data.columns
 
+                    if "precip_prob" not in data.columns:
+                        data["precip_prob"] = 1.0
+
+                    data["precip_prob"][data["precip_rate"].isna()] == 0.0
+
                     data = data[data["id"].isin(sensor_ids)].copy()
                     data["forecast_time"] = data["timestamp"] - curr_time
 
@@ -114,4 +119,4 @@ class ForecastManager:
             curr_time += ForecastManager.DATA_STEP
 
         return concat_frames(frames=loaded_forecasts,
-                             columns=["id", "precip_type", "precip_rate", "timestamp", "forecast_time"])
+                             columns=["id", "precip_type", "precip_rate", "precip_prob", "timestamp", "forecast_time"])

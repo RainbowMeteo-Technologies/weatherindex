@@ -22,12 +22,12 @@ class TestRainOnlyEvaluator:
                 ("sensor_2", 0.0, PrecipitationType.RAIN.value, timestamp(0))
             ]),
             create_forecast([
-                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600),
-                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200),
+                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600, 1.0),
+                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200, 1.0),
             ]),
             create_metrics_result(data=(
                 (0, "sensor_1", *create_metrics(tp=1)),
@@ -46,9 +46,9 @@ class TestRainOnlyEvaluator:
                 ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0))
             ]),
             create_forecast([
-                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Y", 0.0, PrecipitationType.UNKNOWN.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Y", 0.0, PrecipitationType.UNKNOWN.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, "X", *create_metrics(tp=1)),
@@ -90,17 +90,17 @@ class TestRainOnlyEvaluator:
             ]),
             create_forecast([
                 # 1 TP, 1 FP -> 0.5 precision, 1.0 recall
-                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600),
+                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 600, 1.0),
 
                 # 1 FN, 1 FP -> 0.0 precision, 0.0 recall
-                ("sensor_1", 0.0, PrecipitationType.RAIN.value, timestamp(0), 1200),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200),
+                ("sensor_1", 0.0, PrecipitationType.RAIN.value, timestamp(0), 1200, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1200, 1.0),
 
                 # 1 TP, 1 FP, 1 FN -> 0.5 precision, 0.5 recall
-                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1800),
-                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1800),
-                ("sensor_3", 0.0, PrecipitationType.RAIN.value, timestamp(0), 1800)
+                ("sensor_1", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1800, 1.0),
+                ("sensor_2", 10.0, PrecipitationType.RAIN.value, timestamp(0), 1800, 1.0),
+                ("sensor_3", 0.0, PrecipitationType.RAIN.value, timestamp(0), 1800, 1.0)
             ]),
             create_metrics_result(data=(
                 (600, 0.5, 1.0, fscore(0.5, 1.0)),
@@ -117,9 +117,9 @@ class TestRainOnlyEvaluator:
             ]),
             create_forecast([
                 # 1 TP, 2 TN -> 1.0 precision, 1.0 recall
-                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Y", 0.0, PrecipitationType.UNKNOWN.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Y", 0.0, PrecipitationType.UNKNOWN.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, 1, 1, 1)
@@ -163,9 +163,9 @@ class TestSnowOnlyEvaluator:
                 ("Z", 10.0, PrecipitationType.RAIN.value, timestamp(0))
             ]),
             create_forecast([
-                ("X", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0),
-                ("Y", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0),
+                ("Y", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, "X", *create_metrics(tp=1)),
@@ -207,9 +207,9 @@ class TestSnowOnlyEvaluator:
             ]),
             create_forecast([
                 # 1 TP, 1 FN, 1 FP -> 0.5 precision, 0.5 recall
-                ("X", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0),
-                ("Y", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0),
-                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0)
+                ("X", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0),
+                ("Y", 10.0, PrecipitationType.RAIN.value, timestamp(0), 0, 1.0),
+                ("Z", 10.0, PrecipitationType.SNOW.value, timestamp(0), 0, 1.0)
             ]),
             create_metrics_result(data=[
                 (0, 0.5, 0.5, fscore(0.5, 0.5))

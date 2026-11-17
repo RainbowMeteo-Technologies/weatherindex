@@ -27,6 +27,7 @@ SNOW_RATE_CONVERT_B: float = 2.0
 class PrecipValue:
     dbz: typing.Optional[float]  # dbz value
     precip_type: PrecipitationType  # precipitation type
+    precip_prob: float = 1.0
 
     def is_rain(self) -> bool:
         return self.precip_type == PrecipitationType.RAIN
@@ -63,6 +64,8 @@ class PrecipitationData:
     reflectivity: np.ndarray
     # precipitation types mask (uint8 see PrecipitationType)
     type: np.ndarray
+    # precipitation probability data: values in range [0; 1]
+    precip_prob: typing.Optional[np.ndarray] = None
 
     def __post_init__(self):
         assert self.reflectivity.shape == self.type.shape
@@ -73,6 +76,10 @@ class PrecipitationData:
         if not np.all(np.isnan(self.reflectivity)):  # avoid warning message. One of the value should not be NaN
             assert np.nanmin(self.reflectivity) >= dbz.MIN_VALUE
             assert np.nanmax(self.reflectivity) <= dbz.MAX_VALUE
+
+        if self.precip_prob is not None:
+            assert self.precip_prob.shape == self.reflectivity.shape
+            assert self.precip_prob.dtype == np.float32
 
     def get(self, mask: typing.Union[PrecipitationType, typing.Iterable[PrecipitationType]]) -> np.ndarray:
         """Returns reflectivity by specified types mask
@@ -96,5 +103,11 @@ class PrecipitationData:
 
     def get_point(self, py: int, px: int) -> PrecipValue:
         dbz = self.reflectivity[py, px]
+
+        precip_prob = 1.0
+        if self.precip_prob is not None and (prob := self.precip_prob[py, px]) is not np.nan:
+            precip_prob = prob
+
         return PrecipValue(dbz=None if np.isnan(dbz) else dbz,
-                           precip_type=PrecipitationType(self.type[py, px]))
+                           precip_type=PrecipitationType(self.type[py, px]),
+                           precip_prob=precip_prob)

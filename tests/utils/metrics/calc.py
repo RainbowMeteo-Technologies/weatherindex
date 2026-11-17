@@ -50,7 +50,7 @@ def create_observations(data: typing.List[any]) -> pandas.DataFrame:
 
 
 def create_forecast(data: typing.List[any]) -> pandas.DataFrame:
-    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp", "forecast_time"],
+    return pandas.DataFrame(columns=["id", "precip_rate", "precip_type", "timestamp", "forecast_time", "precip_prob"],
                             data=data)
 
 

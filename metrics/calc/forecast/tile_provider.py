@@ -65,9 +65,10 @@ class TileProvider(ForecastProvider):
                             sensor.id,
                             precip_value.to_mmh(),
                             precip_value.precip_type.value,
+                            precip_value.precip_prob,
                             self._snapshot_timestamp + forecast_time])
 
                 forecast_time += self._forecast_step
 
         return pandas.DataFrame(data=result_data,
-                                columns=["id", "precip_rate", "precip_type", "timestamp"])
+                                columns=["id", "precip_rate", "precip_type", "precip_prob", "timestamp"])
