@@ -25,7 +25,7 @@ def _parse_precip_type(precip_type: typing.Optional[str], precip_rate: float, sn
 
 class ForecaParser(BaseParser):
 
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         rows = []
         data_json = json.loads(data)
         sensor_id = os.path.basename(file_name).replace(".json", "")

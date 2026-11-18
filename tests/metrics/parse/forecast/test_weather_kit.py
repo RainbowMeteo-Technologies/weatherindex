@@ -108,11 +108,26 @@ class TestWeatherKit:
     ])
     def test_parse_next_hour(self, forecast_json: dict, expected_rows: OutputRowType):
         parser = WeatherKitParser()
-        parsed_rows = parser._parse_next_hour("test_sensor", forecast=forecast_json)
+        parsed_rows = parser.apply_thresholds(parser._parse_next_hour("test_sensor", forecast=forecast_json))
         for row in parsed_rows:
             assert isinstance(row[-1], int)
 
         assert parsed_rows == expected_rows
+
+    def test_raw_rows_keep_the_rate_of_a_low_probability(self):
+        forecast = {
+            "metadata": {"latitude": 51.458, "longitude": -3.283},
+            "summary": [{"startTime": "2023-11-05T01:00:00Z", "condition": "rain"}],
+            "minutes": [{"startTime": "2023-11-05T01:00:00Z", "precipitationChance": 0.28,
+                         "precipitationIntensity": 0.09}],
+        }
+        parser = WeatherKitParser()
+
+        raw = parser._parse_next_hour("test_sensor", forecast=forecast)
+
+        assert raw == [("test_sensor", -3.283, 51.458, 1699146000, 0.09, 0.28, PrecipitationType.RAIN.value)]
+        assert parser.apply_thresholds(raw) == [
+            ("test_sensor", -3.283, 51.458, 1699146000, 0.0, 0.28, PrecipitationType.RAIN.value)]
 
     @pytest.mark.parametrize("condition, expected_type", [
         ("clear", PrecipitationType.UNKNOWN),

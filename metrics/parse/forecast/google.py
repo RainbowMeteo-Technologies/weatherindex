@@ -28,8 +28,8 @@ def _parse_quantity(segment: typing.Dict[str, any], key: str) -> float:
 class GoogleParser(BaseParser):
 
     @override
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> list[list[typing.Any]]:
-        """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> list[list[typing.Any]]:
+        """See :meth:`~metrics.parse.base_parser.BaseParser.parse_raw`"""
         rows = []
         data_json = json.loads(data)
         sensor_id = os.path.basename(file_name).replace(".json", "")

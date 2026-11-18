@@ -85,19 +85,23 @@ class WeatherKitParser(BaseParser):
             precip_prob = float(feature["precipitationChance"])
             precip_type = _get_precip_type(timestamp=timestamp)
 
-            # override precip_rate and precip_prob based on precip type
+            # an unknown precip type has neither rate nor probability
             if precip_type == PrecipitationType.UNKNOWN:
                 precip_prob = 0.0
-                precip_rate = 0.0
-            elif precip_prob < PROB_THRESHOLD:
                 precip_rate = 0.0
 
             result.append((sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type.value))
 
         return result
 
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
+    def apply_thresholds(self, rows: OutputRowType) -> OutputRowType:
+        """The rate of a row with a probability below `PROB_THRESHOLD` is zero"""
+        return [(sensor_id, lon, lat, timestamp, 0.0 if precip_prob < PROB_THRESHOLD else precip_rate, precip_prob,
+                 precip_type)
+                for sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type in rows]
+
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+        """See :meth:`~metrics.parse.base_parser.BaseParser.parse_raw`"""
         rows = []
         try:
             data_json = json.loads(data)
