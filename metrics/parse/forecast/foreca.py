@@ -3,7 +3,7 @@ import os
 import typing
 
 from datetime import datetime
-from metrics.parse.base_parser import BaseParser
+from metrics.parse.base_parser import RawParser
 from metrics.utils.precipitation import PrecipitationType
 
 
@@ -23,9 +23,9 @@ def _parse_precip_type(precip_type: typing.Optional[str], precip_rate: float, sn
     return PrecipitationType.UNKNOWN.value
 
 
-class ForecaParser(BaseParser):
+class ForecaParser(RawParser):
 
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         rows = []
         data_json = json.loads(data)
         sensor_id = os.path.basename(file_name).replace(".json", "")

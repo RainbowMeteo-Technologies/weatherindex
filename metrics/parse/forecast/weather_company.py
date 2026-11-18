@@ -3,7 +3,7 @@ import os
 import typing
 
 from dateutil.parser import isoparse
-from metrics.parse.base_parser import BaseParser
+from metrics.parse.base_parser import RawParser
 
 from rich.console import Console
 from metrics.utils.precipitation import PrecipitationType
@@ -27,9 +27,15 @@ def _parse_precip_type(precip_type: str) -> PrecipitationType:
     raise ValueError(f"Unknown precipitation type: {precip_type}")
 
 
-class WeatherCompanyParser(BaseParser):
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
+class WeatherCompanyParser(RawParser):
+    def apply_thresholds(self, rows: typing.List[typing.List[any]]) -> typing.List[typing.List[any]]:
+        """The type of a row with a zero probability is UNKNOWN"""
+        return [(sensor_id, lon, lat, timestamp, precip_rate, precip_prob,
+                 PrecipitationType.UNKNOWN if precip_prob == 0.0 else precip_type)
+                for sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type in rows]
+
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+        """See :meth:`~metrics.parse.base_parser.RawParser.parse_raw`"""
         rows = []
         data_json = json.loads(data)
         sensor_id = os.path.basename(file_name).replace(".json", "")
@@ -57,9 +63,6 @@ class WeatherCompanyParser(BaseParser):
             snow_rate = snow_rate * 10.0
             precip_rate = precip_rate
             precip_prob = precip_prob / 100.0
-
-            if precip_prob == 0.0:
-                precip_type = PrecipitationType.UNKNOWN
 
             if precip_type == PrecipitationType.MIX:
                 precip_rate = max(precip_rate, snow_rate)

@@ -3,7 +3,7 @@ import os
 import typing
 
 from dateutil.parser import isoparse
-from metrics.parse.base_parser import BaseParser
+from metrics.parse.base_parser import RawParser
 from metrics.utils.precipitation import PrecipitationType
 from typing_extensions import override
 
@@ -25,11 +25,11 @@ def _parse_quantity(segment: typing.Dict[str, any], key: str) -> float:
     return float(value.get("quantity", 0.0) or 0.0)
 
 
-class GoogleParser(BaseParser):
+class GoogleParser(RawParser):
 
     @override
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> list[list[typing.Any]]:
-        """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> list[list[typing.Any]]:
+        """See :meth:`~metrics.parse.base_parser.RawParser.parse_raw`"""
         rows = []
         data_json = json.loads(data)
         sensor_id = os.path.basename(file_name).replace(".json", "")
