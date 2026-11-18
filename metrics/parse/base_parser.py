@@ -55,10 +55,10 @@ class BaseParser:
         """
         return self.apply_thresholds(self.parse_raw(timestamp=timestamp, file_name=file_name, data=data))
 
+    @abstractmethod
     def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         """Converts data from raw format to rows as the provider gives them, without the thresholds of the main
         pipeline. Arguments and rows are as of `_parse_impl`"""
-        raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
 
     def apply_thresholds(self, rows: typing.List[typing.List[any]]) -> typing.List[typing.List[any]]:
         """Applies the thresholds of the main pipeline to the rows of `parse_raw`; no thresholds by default"""
@@ -78,7 +78,6 @@ class BaseParser:
         bool
             Returns `True` if file have to be parsed, otherwise returns `False`
         """
-        raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
 
     @abstractmethod
     def _get_columns(self) -> typing.List[str]:
@@ -89,5 +88,3 @@ class BaseParser:
         List[str]
             Returns list of columns
         """
-        raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
-
