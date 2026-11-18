@@ -15,5 +15,6 @@ class DataVendor(BaseDataVendor, Enum):
     WeatherCompany = "weathercompany"
     Foreca = "foreca"
     Google = "google"
+    MeteoLibre = "meteolibre"
 
     Metar = "metar"

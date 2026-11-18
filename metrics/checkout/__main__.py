@@ -17,7 +17,8 @@ def _run_checkout(args: argparse.Namespace):
                                     s3_uri_vaisala=args.s3_uri_vaisala,
                                     s3_uri_rainbowai=args.s3_uri_rainbowai,
                                     s3_uri_weathercompany=args.s3_uri_weathercompany,
-                                    s3_uri_google=args.s3_uri_google)
+                                    s3_uri_google=args.s3_uri_google,
+                                    s3_uri_meteolibre=args.s3_uri_meteolibre)
 
     observations = ObservationSourcesInfo(s3_uri_metar=args.s3_uri_metar_data)
 
@@ -73,6 +74,9 @@ if __name__ == "__main__":
                           help="S3 uri where to get WeatherCompany forecast")
     s3_group.add_argument("--s3-uri-google", type=str, dest="s3_uri_google", required=False, default=None,
                           help="S3 uri where to get google forecast")
+    s3_group.add_argument("--s3-uri-meteolibre", type=str, dest="s3_uri_meteolibre",
+                          required=False, default=None,
+                          help="S3 uri where to get MeteoLibre forecast")
 
     parser.set_defaults(func=_run_checkout)
 

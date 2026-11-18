@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.3.7`
+- Support MeteoLibre forecast downloader (rate limited precipitation nowcast, Europe)
+- Add MeteoLibre forecast vendor to checkout and parse
+- Remove unused `geopandas` dependency from forecast tool requirements
+
 ## `0.3.6`
 - Split the parsing of the WeatherKit, Weather Company, Foreca and Google forecasts into `parse_raw` (the values as the provider gives them) and `apply_thresholds`; `_parse_impl` is their composition
 - Fix the Weather Company rate of a zero-probability snow or mixed row: it follows the type, not the rain rate

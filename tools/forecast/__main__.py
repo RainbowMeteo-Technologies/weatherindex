@@ -4,6 +4,7 @@ import asyncio
 from forecast.providers.accuweather import AccuWeather
 from forecast.providers.foreca import Foreca
 from forecast.providers.google import Google
+from forecast.providers.meteolibre import MeteoLibre
 from forecast.providers.microsoft import Microsoft
 from forecast.providers.myradar import MyRadar
 from forecast.providers.openweather import OpenWeather
@@ -188,6 +189,19 @@ def _create_google(args: argparse.Namespace) -> Google:
                   sensors=sensors)
 
 
+def _create_meteolibre(args: argparse.Namespace) -> MeteoLibre:
+    publisher = _create_publisher(args)
+    sensors = Sensor.from_csv(sensors_path=args.sensors,
+                              include_countries=args.include_countries)
+
+    return MeteoLibre(download_path=args.download_path,
+                      publisher=publisher,
+                      frequency=args.download_period,
+                      api_url=args.api_url,
+                      qps=args.qps,
+                      sensors=sensors)
+
+
 def _create_weathercompany(args: argparse.Namespace) -> WeatherCompany:
     publisher = _create_publisher(args)
     sensors = Sensor.from_csv(sensors_path=args.sensors,
@@ -352,6 +366,16 @@ if __name__ == "__main__":
                                        choices=WeatherCompany.PRODUCT_NAMES,
                                        help="WeatherCompany specific forecast API selection")
     weathercompany_parser.set_defaults(func=_create_weathercompany)
+
+    # MeteoLibre
+    meteolibre_parser = subparser.add_parser("meteolibre", help="MeteoLibre")
+    _add_sensors_params(meteolibre_parser)
+    meteolibre_parser.add_argument("--api-url", type=str, dest="api_url", required=False,
+                                   default=MeteoLibre.DEFAULT_API_URL,
+                                   help="MeteoLibre API base URL")
+    meteolibre_parser.add_argument("--qps", type=float, required=False, default=10.0,
+                                   help="Maximum number of requests per second to MeteoLibre API")
+    meteolibre_parser.set_defaults(func=_create_meteolibre)
 
     args = parser.parse_args()
 

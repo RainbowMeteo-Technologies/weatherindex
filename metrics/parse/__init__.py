@@ -3,6 +3,7 @@ from metrics.data_vendor import DataVendor
 from metrics.parse.forecast.accuweather import AccuWeatherParser
 from metrics.parse.forecast.foreca import ForecaParser
 from metrics.parse.forecast.google import GoogleParser
+from metrics.parse.forecast.meteolibre import MeteoLibreParser
 from metrics.parse.forecast.rainbow import RainbowAiParser
 from metrics.parse.forecast.tomorrow_io import TomorrowIoParser
 from metrics.parse.forecast.vaisala import VaisalaParser
@@ -19,6 +20,7 @@ PROVIDERS_PARSERS = {
     DataVendor.Vaisala.value: VaisalaParser,
     DataVendor.RainbowAi.value: RainbowAiParser,
     DataVendor.WeatherCompany.value: WeatherCompanyParser,
+    DataVendor.MeteoLibre.value: MeteoLibreParser,
 
     DataVendor.Metar.value: MetarParser,
 }
