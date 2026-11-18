@@ -6,7 +6,7 @@ import typing
 from dataclasses import dataclass
 from dateutil.parser import isoparse
 
-from metrics.parse.base_parser import RawParser
+from metrics.parse.base_parser import BaseParser
 from rich.console import Console
 from metrics.utils.precipitation import PrecipitationType
 
@@ -46,7 +46,7 @@ class SummaryRange:
     precip_type: PrecipitationType
 
 
-class WeatherKitParser(RawParser):
+class WeatherKitParser(BaseParser):
 
     def _parse_next_hour(self, sensor_id: str, forecast: dict) -> OutputRowType:
         """Parses `forecastNextHour` forecast from weather kit API response
@@ -101,7 +101,7 @@ class WeatherKitParser(RawParser):
                 for sensor_id, lon, lat, timestamp, precip_rate, precip_prob, precip_type in rows]
 
     def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """See :meth:`~metrics.parse.base_parser.RawParser.parse_raw`"""
+        """See :meth:`~metrics.parse.base_parser.BaseParser.parse_raw`"""
         rows = []
         try:
             data_json = json.loads(data)

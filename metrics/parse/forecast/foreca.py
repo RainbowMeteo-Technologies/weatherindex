@@ -3,7 +3,7 @@ import os
 import typing
 
 from datetime import datetime
-from metrics.parse.base_parser import RawParser
+from metrics.parse.base_parser import BaseParser
 from metrics.utils.precipitation import PrecipitationType
 
 
@@ -23,7 +23,7 @@ def _parse_precip_type(precip_type: typing.Optional[str], precip_rate: float, sn
     return PrecipitationType.UNKNOWN.value
 
 
-class ForecaParser(RawParser):
+class ForecaParser(BaseParser):
 
     def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
         rows = []

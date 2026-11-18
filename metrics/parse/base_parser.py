@@ -35,9 +35,9 @@ class BaseParser:
         data_frame = pandas.DataFrame(rows, columns=self._get_columns())
         data_frame.to_parquet(output_parquet_path, compression="gzip")
 
-    @abstractmethod
     def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """Converts data from raw format to parquet table
+        """Converts data from raw format to parquet table: the rows of `parse_raw` with `apply_thresholds` applied.
+        A parser overrides either this method, or `parse_raw` (and `apply_thresholds` when it has thresholds)
 
         Parameters
         ----------
@@ -53,7 +53,16 @@ class BaseParser:
         List[List[any]]
             Retruns list of parsed rows. Items of each row have to be in the same order as `_get_columns` values
         """
+        return self.apply_thresholds(self.parse_raw(timestamp=timestamp, file_name=file_name, data=data))
+
+    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
+        """Converts data from raw format to rows as the provider gives them, without the thresholds of the main
+        pipeline. Arguments and rows are as of `_parse_impl`"""
         raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
+
+    def apply_thresholds(self, rows: typing.List[typing.List[any]]) -> typing.List[typing.List[any]]:
+        """Applies the thresholds of the main pipeline to the rows of `parse_raw`; no thresholds by default"""
+        return rows
 
     @abstractmethod
     def _should_parse_file_extension(self, file_extension: str) -> bool:
@@ -82,23 +91,3 @@ class BaseParser:
         """
         raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
 
-
-class RawParser(BaseParser):
-    """Base class of the parsers split into the raw parsing of a file and the thresholds applied to its rows.
-
-    `parse_raw` returns the rows as the provider gives them, in the order of `_get_columns`; `apply_thresholds`
-    changes rows by the rules of the main pipeline (by default none). `_parse_impl` is their composition, so the output
-    of the parsing stays the same, while a consumer needing the raw values calls `parse_raw`.
-    """
-
-    def parse_raw(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """Converts the raw data of a file to rows without applying thresholds, see `BaseParser._parse_impl`"""
-        raise NotImplementedError(f"This method have to be overriden in class {self.__class__.__name__}")
-
-    def apply_thresholds(self, rows: typing.List[typing.List[any]]) -> typing.List[typing.List[any]]:
-        """Applies the thresholds of the main pipeline to the rows of `parse_raw`; no thresholds by default"""
-        return rows
-
-    def _parse_impl(self, timestamp: int, file_name: str, data: bytes) -> typing.List[typing.List[any]]:
-        """See :func:`~metrics.base_parser.BaseParser._parse_impl`"""
-        return self.apply_thresholds(self.parse_raw(timestamp=timestamp, file_name=file_name, data=data))
