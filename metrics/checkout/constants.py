@@ -9,5 +9,6 @@ RAINBOWAI_PERIOD = 600      # 10 minutes
 WEATHERCOMPANY_PERIOD = 600  # 10 minutes
 FORECA_PERIOD = 600          # 10 minutes
 GOOGLE_PERIOD = 600          # 10 minutes
+METEOLIBRE_PERIOD = 600       # 10 minutes
 
 AGGREGATION_PERIOD = 600   # Metrics aggregation period (10 minutes)

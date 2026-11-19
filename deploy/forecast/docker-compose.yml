@@ -167,3 +167,22 @@ services:
       tomorrowio
       --forecast-type 6hours
       --token ${TOMORROW_TOKEN}
+
+  meteolibre-downloader:
+    profiles:
+      - meteolibre
+    image: weatherindex/weatherindex:forecast-${METRICS_DOCKER_VERSION}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./.volume/meteolibre/:/storage/
+      - ./.sensors/global_sensors.csv:/sensors.csv
+    command: |
+      python -m forecast
+      --download-path /storage
+      --s3-uri ${S3_URI_METEOLIBRE}
+      --download-period 600
+      meteolibre
+      --sensors /sensors.csv
+      --qps 10
